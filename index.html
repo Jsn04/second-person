@@ -104,6 +104,22 @@ button:disabled{opacity:.4; cursor:default}
 #beam{animation:sweep 16s linear infinite}
 @keyframes sweep{to{transform:rotate(360deg)}}
 
+#scene{transform-origin:50% 50%; will-change:transform;
+  animation:drift 12s ease-in-out infinite alternate}
+@keyframes drift{
+  from{transform:scale(var(--sc,1.06)) translate(0,0)}
+  to{transform:scale(var(--sc,1.06)) translate(var(--dx,1.2%),var(--dy,.6%))}}
+
+.sway{transform-origin:center bottom; animation:sway 7.5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:translateX(-2px) rotate(-.3deg)}to{transform:translateX(2px) rotate(.3deg)}}
+
+.mist{animation:mist 30s linear infinite}
+@keyframes mist{from{transform:translateX(-14%)}to{transform:translateX(14%)}}
+
+.flash{position:absolute; inset:0; pointer-events:none; background:#C2D6DA; opacity:0; mix-blend-mode:screen}
+.flash.go{animation:flash 1s ease-out}
+@keyframes flash{0%{opacity:0}5%{opacity:.26}11%{opacity:.04}17%{opacity:.19}30%{opacity:.02}100%{opacity:0}}
+
 @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
 .sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
 </style>
@@ -118,6 +134,7 @@ button:disabled{opacity:.4; cursor:default}
   <div class="stage" id="stage">
     <svg id="scene" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
     <canvas id="rain"></canvas>
+    <div class="flash" id="flash"></div>
     <div class="grain"></div>
     <div class="vig"></div>
     <div class="pill l live" id="statePill"><span class="dot"></span><span id="stateTxt">generating live</span></div>
@@ -168,7 +185,7 @@ button:disabled{opacity:.4; cursor:default}
 var NS="http://www.w3.org/2000/svg";
 function figure(x,y,s,tone){
   tone=tone||"#0A0F10";
-  return '<g transform="translate('+x+','+y+') scale('+s+')" opacity=".97">'+
+  return '<g class="sway" transform="translate('+x+','+y+') scale('+s+')" opacity=".97">'+
     '<ellipse cx="0" cy="-96" rx="15" ry="18" fill="'+tone+'" stroke="#39433F" stroke-width="1.2"/>'+
     '<path d="M-26 -80 q26 -12 52 0 l10 62 q-36 12 -72 0 z" fill="'+tone+'" stroke="#333E3A" stroke-width="1.2"/>'+
     '<path d="M-26 -80 q26 -12 52 0" fill="none" stroke="#5D6863" stroke-width="1.6" opacity=".75"/>'+
@@ -189,7 +206,7 @@ function stranger(x,y,s){
 }
 
 var SCENES={
-  lamp_room:function(){
+  lamp_room:function(w){
     var g='<rect width="800" height="450" fill="#0C1315"/>';
     g+='<circle cx="400" cy="180" r="230" fill="#16110A" opacity=".85"/>';
     g+='<g stroke="#20292B" stroke-width="3" fill="none">';
@@ -201,10 +218,11 @@ var SCENES={
     g+='<circle cx="400" cy="176" r="21" fill="#F2C57C" opacity=".95"><animate attributeName="opacity" values=".95;.72;.95" dur="4.5s" repeatCount="indefinite"/></circle>';
     g+='<rect x="0" y="330" width="800" height="120" fill="#080D0E"/>';
     g+='<rect x="0" y="328" width="800" height="4" fill="#1B2426"/>';
-    g+=figure(560,330,1.05);
+    g+='<g class="mist" opacity=".16"><ellipse cx="400" cy="300" rx="440" ry="46" fill="#7E9AA0"/></g>';
+    if(w) g+=figure(560,330,1.05);
     return g;
   },
-  stairwell:function(){
+  stairwell:function(w){
     var g='<rect width="800" height="450" fill="#080C0E"/>';
     g+='<ellipse cx="400" cy="-30" rx="200" ry="120" fill="#241A0C" opacity=".55"/>';
     g+='<g fill="#131A1C" stroke="#1D2628" stroke-width="1.5">';
@@ -217,10 +235,10 @@ var SCENES={
     g+='<g opacity=".35" fill="none" stroke="#233033" stroke-width="2">';
     for(var j=0;j<5;j++){ g+='<path d="M'+(60+j*170)+' 0 q14 200 -6 450"/>'; }
     g+='</g>';
-    g+=figure(430,300,.86);
+    if(w) g+=figure(430,300,.86);
     return g;
   },
-  radio_room:function(){
+  radio_room:function(w){
     var g='<rect width="800" height="450" fill="#0A1012"/>';
     g+='<rect x="0" y="0" width="800" height="316" fill="#0E1517"/>';
     g+='<line x1="400" y1="0" x2="400" y2="52" stroke="#2A3436" stroke-width="2"/>';
@@ -234,10 +252,10 @@ var SCENES={
     g+='<g fill="#1B2427" stroke="#2A3538" stroke-width="1.5"><rect x="278" y="196" width="128" height="54" rx="3"/><rect x="424" y="208" width="86" height="42" rx="3"/></g>';
     g+='<g id="dials" fill="#3A3020"><circle cx="300" cy="224" r="6"/><circle cx="322" cy="224" r="6"/><circle cx="344" cy="224" r="6"/></g>';
     g+='<rect x="0" y="318" width="800" height="132" fill="#070B0C"/>';
-    g+=figure(140,344,.94);
+    if(w) g+=figure(140,344,.94);
     return g;
   },
-  door:function(){
+  door:function(w){
     var g='<rect width="800" height="450" fill="#070B0C"/>';
     g+='<rect x="250" y="70" width="300" height="330" fill="#101719" stroke="#232E31" stroke-width="4"/>';
     g+='<g fill="#26302F">';
@@ -247,7 +265,8 @@ var SCENES={
     g+='<rect x="524" y="70" width="12" height="330" fill="#8FB0AE" opacity=".22"/>';
     g+='<circle cx="300" cy="240" r="16" fill="none" stroke="#33403F" stroke-width="5"/>';
     g+='<rect x="0" y="396" width="800" height="54" fill="#050809"/>';
-    g+=figure(640,398,1.0);
+    g+='<g class="mist" opacity=".13"><ellipse cx="400" cy="380" rx="420" ry="38" fill="#7E9AA0"/></g>';
+    if(w) g+=figure(640,398,1.0);
     return g;
   }
 };
@@ -318,16 +337,22 @@ var ANOM=[
 ];
 
 /* ============ state ============ */
-var S={loc:"lamp_room", clip:1, tension:0, moves:0, found:0, busy:false,
+var S={loc:"lamp_room", clip:1, shot:"wide", tension:0, moves:0, found:0, busy:false,
        cur:null, seen:[], hist:{}, started:false, lastIdle:0};
 var el=function(id){ return document.getElementById(id); };
 var scene=el("scene"), subs=el("subs"), log=el("log");
 var pick=function(a){ return a[Math.floor(Math.random()*a.length)]; };
 
-function draw(){
-  var html=SCENES[S.loc]();
+function draw(showWren){
+  if(showWren===undefined) showWren=true;
+  var html=SCENES[S.loc](showWren);
   if(S.cur) html+=S.cur.art(S.loc);
   scene.innerHTML=html;
+  // every clip is framed slightly differently, the way generated video never repeats a shot
+  scene.style.setProperty("--dx",(Math.random()*3.4-1.7).toFixed(2)+"%");
+  scene.style.setProperty("--dy",(Math.random()*2.2-1.1).toFixed(2)+"%");
+  scene.style.setProperty("--sc",(1.05+Math.random()*0.055).toFixed(3));
+  cv.style.opacity=(0.34+Math.random()*0.30).toFixed(2);   // the rain gusts
 }
 function say(t){
   subs.classList.remove("on");
@@ -345,7 +370,7 @@ function hud(lat){
   el("hCon").textContent=(0.86+Math.random()*0.11).toFixed(2);
   el("hAno").textContent=String(S.found);
   el("cAno").classList.toggle("hot", S.found>0);
-  el("locPill").textContent="clip "+S.clip+" \u00b7 "+LOCNAME[S.loc];
+  el("locPill").textContent="clip "+S.clip+" \u00b7 "+LOCNAME[S.loc]+" \u00b7 "+(S.shot||"wide");
 }
 function state(on,txt){
   var p=el("statePill");
@@ -376,7 +401,6 @@ function render(loc){
   }
   S.cur=carry||born;
   S.hist[loc]=S.cur;
-  draw();
   return {born:born, carry:carry, vanished:vanished};
 }
 
@@ -429,9 +453,13 @@ function turn(text){
     S.clip++;
     var r={born:null,carry:null,vanished:null};
 
+    // her POV when she is looking at something, otherwise mostly a shot of her.
+    // an empty room is the point: there is nobody else out here.
+    var pov = (it.type==="look") ? true : (Math.random()<0.36);
     if(it.type==="move" && it.to!==S.loc){ S.loc=it.to; S.moves++; r=render(S.loc); }
-    else if(it.type==="move"){ r={born:null,carry:S.cur,vanished:null}; draw(); }
-    else { draw(); }
+    else if(it.type==="move"){ r={born:null,carry:S.cur,vanished:null}; }
+    S.shot = pov ? "pov" : "wide";
+    draw(!pov);
 
     if(r.born){
       S.found++; S.tension=Math.min(S.tension+2,6); S.seen.push(r.born.id);
@@ -464,9 +492,20 @@ setInterval(function(){
   if(!S.started||S.busy) return;
   if(Date.now()-S.lastIdle<26000) return;
   S.lastIdle=Date.now(); S.clip++;
+  S.shot = Math.random()<0.55 ? "pov" : "wide";
+  draw(S.shot==="wide");
   hud(900+Math.random()*400);
   say(S.cur? pick(["It hasn't moved. I've been counting.","Still there. I'm not going to keep saying it.","I'd rather you said something."]) : pick(AMB));
 },4000);
+
+/* ============ weather ============ */
+function strike(){
+  if(!S.started) return;
+  var f=el("flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
+}
+(function weather(){
+  setTimeout(function(){ strike(); weather(); }, 16000+Math.random()*26000);
+})();
 
 /* ============ rain ============ */
 var cv=el("rain"), cx=cv.getContext("2d"), drops=[];
