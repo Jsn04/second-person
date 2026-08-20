@@ -1,0 +1,515 @@
+<title>Second Person</title>
+
+<style>
+:root{
+  --ground:#070A0B; --panel:#0D1214; --panel2:#121A1C; --raise:#182123;
+  --line:rgba(233,228,216,.10); --line2:rgba(233,228,216,.18);
+  --bone:#E9E4D8; --dim:#9AA19C; --faint:#6C736F;
+  --amber:#D79A3C; --amberhi:#F2C57C; --alarm:#C9564A;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,'Liberation Mono',monospace;
+  --voice:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--bone);
+  font-family:var(--mono); font-size:14px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:940px; margin:0 auto; padding:28px 20px 56px; display:flex; flex-direction:column; gap:18px}
+
+.masthead{display:flex; align-items:baseline; justify-content:space-between; gap:16px; flex-wrap:wrap}
+.markname{font-family:var(--voice); font-weight:300; font-size:30px; letter-spacing:.01em; margin:0; text-wrap:balance}
+.markname em{font-style:italic; color:var(--amberhi)}
+.tagline{font-size:11.5px; color:var(--faint); letter-spacing:.13em; text-transform:uppercase}
+
+/* ---------- scene ---------- */
+.stage{position:relative; border:1px solid var(--line); border-radius:3px; overflow:hidden; background:#080C0D; aspect-ratio:16/9}
+.stage svg,.stage canvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+#rain{pointer-events:none; opacity:.5}
+.vig{position:absolute; inset:0; pointer-events:none;
+  background:radial-gradient(115% 85% at 50% 42%, transparent 32%, rgba(3,6,7,.55) 74%, rgba(3,6,7,.9) 100%)}
+.grain{position:absolute; inset:-40%; pointer-events:none; opacity:.05; mix-blend-mode:screen;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  animation:jit .7s steps(3) infinite}
+@keyframes jit{0%{transform:translate(0,0)}33%{transform:translate(-2%,1%)}66%{transform:translate(1%,-2%)}}
+
+.pill{position:absolute; top:12px; display:flex; align-items:center; gap:7px;
+  background:rgba(4,8,9,.62); border:1px solid var(--line); border-radius:999px;
+  padding:5px 11px; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--dim)}
+.pill.l{left:12px} .pill.r{right:12px; text-transform:none; letter-spacing:.04em; border-radius:3px}
+.dot{width:6px; height:6px; border-radius:50%; background:var(--alarm); flex:none}
+.pill.live .dot{animation:bp 1.5s ease-in-out infinite}
+@keyframes bp{50%{opacity:.25}}
+.pill.idle .dot{background:var(--faint); animation:none}
+
+.subs{position:absolute; left:0; right:0; bottom:0; padding:26px 26px 20px; text-align:center;
+  background:linear-gradient(transparent, rgba(3,6,7,.82) 55%)}
+.subs p{margin:0; font-family:var(--voice); font-size:19px; line-height:1.45; color:#F5F1E7;
+  text-wrap:balance; opacity:0; transition:opacity .5s ease}
+.subs p.on{opacity:1}
+@media (max-width:620px){ .subs p{font-size:16px} .subs{padding:18px 16px 14px} }
+
+/* ---------- console ---------- */
+.console{display:grid; grid-template-columns:1fr 260px; gap:14px}
+@media (max-width:720px){ .console{grid-template-columns:1fr} }
+
+.radio{display:flex; flex-direction:column; gap:10px; min-width:0}
+.log{background:var(--panel); border:1px solid var(--line); border-radius:3px; padding:12px 14px;
+  height:150px; overflow-y:auto; font-size:12.5px; line-height:1.65; display:flex; flex-direction:column; gap:7px}
+.log::-webkit-scrollbar{width:6px} .log::-webkit-scrollbar-thumb{background:var(--line2); border-radius:3px}
+.line{display:flex; gap:9px}
+.who{flex:none; width:44px; color:var(--faint); font-size:10.5px; letter-spacing:.09em; padding-top:2px}
+.line.you .txt{color:var(--dim)}
+.line.wren .txt{color:var(--bone)}
+.line.sys .txt{color:var(--amber); font-size:11.5px; letter-spacing:.03em}
+.line.sys .who{color:var(--amber); opacity:.65}
+
+.entry{display:flex; gap:8px}
+input[type=text]{flex:1; min-width:0; background:var(--panel2); color:var(--bone);
+  border:1px solid var(--line2); border-radius:3px; padding:0 13px; height:42px;
+  font-family:var(--mono); font-size:13.5px}
+input[type=text]::placeholder{color:var(--faint)}
+input[type=text]:focus{outline:none; border-color:var(--amber); box-shadow:0 0 0 1px rgba(215,154,60,.3)}
+button{background:var(--raise); color:var(--bone); border:1px solid var(--line2); border-radius:3px;
+  height:42px; padding:0 18px; font-family:var(--mono); font-size:12px; letter-spacing:.09em;
+  text-transform:uppercase; cursor:pointer; transition:background .15s,border-color .15s}
+button:hover:not(:disabled){background:#1F292B; border-color:var(--amber)}
+button:focus-visible{outline:2px solid var(--amber); outline-offset:2px}
+button:disabled{opacity:.4; cursor:default}
+
+.hud{display:flex; flex-direction:column; gap:8px}
+@media (max-width:720px){ .hud{flex-direction:row; flex-wrap:wrap} .hud .cell{flex:1 1 45%} }
+.cell{background:var(--panel); border:1px solid var(--line); border-radius:3px; padding:9px 12px}
+.cell .k{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--faint)}
+.cell .v{font-size:17px; font-variant-numeric:tabular-nums; margin-top:1px}
+.cell.hot{border-color:rgba(201,86,74,.55); background:rgba(201,86,74,.09)}
+.cell.hot .k,.cell.hot .v{color:#E38175}
+
+.suggest{display:flex; gap:6px; flex-wrap:wrap}
+.chip{background:transparent; border:1px solid var(--line2); color:var(--dim); border-radius:3px;
+  padding:5px 10px; font-size:11px; letter-spacing:.02em; text-transform:none; height:auto; cursor:pointer}
+.chip:hover{border-color:var(--amber); color:var(--bone); background:transparent}
+
+.foot{border-top:1px solid var(--line); padding-top:14px; color:var(--faint); font-size:11.5px; line-height:1.7}
+.foot b{color:var(--dim); font-weight:400}
+.foot .cols{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:8px}
+
+/* ---------- cold open ---------- */
+.gate{position:absolute; inset:0; z-index:5; background:rgba(4,7,8,.93);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; padding:28px; text-align:center}
+.gate h2{font-family:var(--voice); font-weight:300; font-size:26px; margin:0; color:#F5F1E7}
+.gate p{margin:0; max-width:46ch; color:var(--dim); font-size:12.5px; line-height:1.75}
+.gate.gone{display:none}
+
+#beam{animation:sweep 16s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+
+@media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
+.sr{position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap}
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <h1 class="markname">Second <em>Person</em></h1>
+    <span class="tagline">Lighthouse 4 &middot; North Rock &middot; night three</span>
+  </header>
+
+  <div class="stage" id="stage">
+    <svg id="scene" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+    <canvas id="rain"></canvas>
+    <div class="grain"></div>
+    <div class="vig"></div>
+    <div class="pill l live" id="statePill"><span class="dot"></span><span id="stateTxt">generating live</span></div>
+    <div class="pill r" id="locPill">clip 1 &middot; lamp room</div>
+    <div class="subs"><p id="subs"></p></div>
+
+    <div class="gate" id="gate">
+      <h2>You are a voice on her radio.</h2>
+      <p>Wren keeps this lighthouse. She can hear you but she cannot see you, and she cannot leave. Tell her where to go and what to look at. She will describe what is actually there, which is not always what you asked for.</p>
+      <button id="begin">Open the channel</button>
+    </div>
+  </div>
+
+  <div class="console">
+    <div class="radio">
+      <div class="log" id="log" role="log" aria-live="polite"><span class="sr">Radio transcript</span></div>
+      <form class="entry" id="entry" autocomplete="off">
+        <label class="sr" for="say">Speak to Wren</label>
+        <input type="text" id="say" placeholder="Speak to Wren&hellip;" maxlength="140" disabled>
+        <button type="submit" id="send" disabled>Send</button>
+      </form>
+      <div class="suggest" id="suggest"></div>
+    </div>
+
+    <div class="hud">
+      <div class="cell"><div class="k">latency</div><div class="v" id="hLat">&mdash;</div></div>
+      <div class="cell"><div class="k">buffer</div><div class="v" id="hBuf">&mdash;</div></div>
+      <div class="cell"><div class="k">continuity</div><div class="v" id="hCon">&mdash;</div></div>
+      <div class="cell" id="cAno"><div class="k">anomalies</div><div class="v" id="hAno">0</div></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>What this is.</b> A playable prototype of a hackathon project. Wren decides what to say from the state of the scene, and the scene generator sometimes places things in the room that were never requested. An observer step compares what was asked for against what got rendered, and anything unaccounted for is handed to Wren as something she has just seen. She trusts her own eyes over you.
+    <div class="cols">
+      <div><b>Real here.</b> The anomaly loop, the observer diff, the buffering and pacing, the escalation, her memory of what she has seen.</div>
+      <div><b>Stubbed here.</b> The scene is drawn procedurally instead of by a video world model, and her lines come from a local engine instead of a language model. Both are one file each in the full build.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ============ scene drawing ============ */
+var NS="http://www.w3.org/2000/svg";
+function figure(x,y,s,tone){
+  tone=tone||"#0A0F10";
+  return '<g transform="translate('+x+','+y+') scale('+s+')" opacity=".97">'+
+    '<ellipse cx="0" cy="-96" rx="15" ry="18" fill="'+tone+'" stroke="#39433F" stroke-width="1.2"/>'+
+    '<path d="M-26 -80 q26 -12 52 0 l10 62 q-36 12 -72 0 z" fill="'+tone+'" stroke="#333E3A" stroke-width="1.2"/>'+
+    '<path d="M-26 -80 q26 -12 52 0" fill="none" stroke="#5D6863" stroke-width="1.6" opacity=".75"/>'+
+    '<rect x="-24" y="-20" width="48" height="24" rx="4" fill="'+tone+'"/>'+
+    '<rect x="-19" y="0" width="15" height="22" fill="'+tone+'"/>'+
+    '<rect x="4" y="0" width="15" height="22" fill="'+tone+'"/>'+
+    '<path d="M-13 -74 q13 -6 26 0 l-3 9 q-10 -4 -20 0 z" fill="#7E2F2B"/>'+
+    '<circle cx="-6" cy="-98" r="5.5" fill="none" stroke="#5B6360" stroke-width="1.6"/>'+
+    '<circle cx="7" cy="-98" r="5.5" fill="none" stroke="#5B6360" stroke-width="1.6"/>'+
+  '</g>';
+}
+function stranger(x,y,s){
+  return '<g transform="translate('+x+','+y+') scale('+s+')">'+
+    '<ellipse cx="0" cy="-94" rx="14" ry="17" fill="#04080A"/>'+
+    '<path d="M-22 -78 q22 -10 44 0 l7 80 q-29 8 -58 0 z" fill="#04080A"/>'+
+    '<path d="M-22 -78 q22 -10 44 0 l7 80 q-29 8 -58 0 z" fill="none" stroke="#2A3437" stroke-width="1"/>'+
+  '</g>';
+}
+
+var SCENES={
+  lamp_room:function(){
+    var g='<rect width="800" height="450" fill="#0C1315"/>';
+    g+='<circle cx="400" cy="180" r="230" fill="#16110A" opacity=".85"/>';
+    g+='<g stroke="#20292B" stroke-width="3" fill="none">';
+    for(var i=0;i<7;i++){ var x=140+i*87; g+='<line x1="'+x+'" y1="40" x2="'+x+'" y2="330"/>'; }
+    g+='<path d="M120 60 q280 -34 560 0"/><path d="M120 200 q280 -18 560 0"/></g>';
+    g+='<g id="beam" style="transform-origin:400px 176px"><path d="M400 176 L120 26 L120 330 Z" fill="#D79A3C" opacity=".07"/></g>';
+    g+='<circle cx="400" cy="176" r="86" fill="#3A2A11" opacity=".5"/>';
+    g+='<circle cx="400" cy="176" r="46" fill="#7E5A1D" opacity=".72"/>';
+    g+='<circle cx="400" cy="176" r="21" fill="#F2C57C" opacity=".95"><animate attributeName="opacity" values=".95;.72;.95" dur="4.5s" repeatCount="indefinite"/></circle>';
+    g+='<rect x="0" y="330" width="800" height="120" fill="#080D0E"/>';
+    g+='<rect x="0" y="328" width="800" height="4" fill="#1B2426"/>';
+    g+=figure(560,330,1.05);
+    return g;
+  },
+  stairwell:function(){
+    var g='<rect width="800" height="450" fill="#080C0E"/>';
+    g+='<ellipse cx="400" cy="-30" rx="200" ry="120" fill="#241A0C" opacity=".55"/>';
+    g+='<g fill="#131A1C" stroke="#1D2628" stroke-width="1.5">';
+    for(var i=0;i<9;i++){
+      var y=70+i*42, w=250-i*11, cx=400+Math.sin(i*0.8)*90;
+      g+='<path d="M'+(cx-w/2)+' '+y+' L'+(cx+w/2)+' '+(y+10)+' L'+(cx+w/2-18)+' '+(y+30)+' L'+(cx-w/2+18)+' '+(y+20)+' Z"/>';
+    }
+    g+='</g>';
+    g+='<path d="M300 92 q120 60 180 40 q-90 90 -60 170 q100 40 160 10" fill="none" stroke="#2B3639" stroke-width="4"/>';
+    g+='<g opacity=".35" fill="none" stroke="#233033" stroke-width="2">';
+    for(var j=0;j<5;j++){ g+='<path d="M'+(60+j*170)+' 0 q14 200 -6 450"/>'; }
+    g+='</g>';
+    g+=figure(430,300,.86);
+    return g;
+  },
+  radio_room:function(){
+    var g='<rect width="800" height="450" fill="#0A1012"/>';
+    g+='<rect x="0" y="0" width="800" height="316" fill="#0E1517"/>';
+    g+='<line x1="400" y1="0" x2="400" y2="52" stroke="#2A3436" stroke-width="2"/>';
+    g+='<circle cx="400" cy="60" r="11" fill="#F2C57C" opacity=".9"><animate attributeName="opacity" values=".9;.6;.88;.7;.9" dur="6s" repeatCount="indefinite"/></circle>';
+    g+='<circle cx="400" cy="60" r="120" fill="#241B0C" opacity=".55"/>';
+    g+='<g fill="#131B1D" stroke="#212B2D" stroke-width="1.5">';
+    g+='<rect x="150" y="80" width="72" height="52"/><rect x="238" y="92" width="58" height="40"/><rect x="560" y="86" width="80" height="46"/>';
+    g+='</g>';
+    g+='<rect x="0" y="314" width="800" height="6" fill="#1A2325"/>';
+    g+='<rect x="250" y="248" width="330" height="70" fill="#141C1E" stroke="#232D2F" stroke-width="1.5"/>';
+    g+='<g fill="#1B2427" stroke="#2A3538" stroke-width="1.5"><rect x="278" y="196" width="128" height="54" rx="3"/><rect x="424" y="208" width="86" height="42" rx="3"/></g>';
+    g+='<g id="dials" fill="#3A3020"><circle cx="300" cy="224" r="6"/><circle cx="322" cy="224" r="6"/><circle cx="344" cy="224" r="6"/></g>';
+    g+='<rect x="0" y="318" width="800" height="132" fill="#070B0C"/>';
+    g+=figure(140,344,.94);
+    return g;
+  },
+  door:function(){
+    var g='<rect width="800" height="450" fill="#070B0C"/>';
+    g+='<rect x="250" y="70" width="300" height="330" fill="#101719" stroke="#232E31" stroke-width="4"/>';
+    g+='<g fill="#26302F">';
+    for(var r=0;r<7;r++){ for(var c=0;c<2;c++){ g+='<circle cx="'+(280+c*240)+'" cy="'+(100+r*46)+'" r="5"/>'; } }
+    g+='</g>';
+    g+='<rect x="516" y="70" width="34" height="330" fill="#2A3B3D" opacity=".5"/>';
+    g+='<rect x="524" y="70" width="12" height="330" fill="#8FB0AE" opacity=".22"/>';
+    g+='<circle cx="300" cy="240" r="16" fill="none" stroke="#33403F" stroke-width="5"/>';
+    g+='<rect x="0" y="396" width="800" height="54" fill="#050809"/>';
+    g+=figure(640,398,1.0);
+    return g;
+  }
+};
+
+var LOCNAME={lamp_room:"lamp room",stairwell:"stairwell",radio_room:"radio room",door:"the iron door"};
+
+/* ============ anomaly catalogue ============ */
+/* each: what the observer reports, what Wren says on seeing it,
+   how she answers if you tell her it is not there, and how it is drawn */
+var ANOM=[
+ {id:"figure", where:["radio_room","stairwell","door"],
+  obs:"a human figure standing against the back wall",
+  say:"There's someone in here. You told me this station was empty.",
+  push:"I am looking right at them. Don't tell me what I can see.",
+  gone:"They're not here now. The room's just a room again.",
+  art:function(l){ return l==="stairwell"? stranger(150,140,.62) : stranger(690,300,.9); }},
+
+ {id:"lamp2", where:["lamp_room","radio_room","stairwell"],
+  obs:"a second lit lamp burning on the far side",
+  say:"There's a second lamp burning over there. This tower has one lamp.",
+  push:"Then you come up here and put it out.",
+  gone:"Second lamp's out. Or it was never lit. I don't know which is worse.",
+  art:function(){ return '<circle cx="118" cy="150" r="52" fill="#3A2A11" opacity=".55"/><circle cx="118" cy="150" r="17" fill="#F2C57C" opacity=".9"/>'; }},
+
+ {id:"prints", where:["stairwell","radio_room","door","lamp_room"],
+  obs:"a line of wet footprints crossing the floor",
+  say:"Footprints. Wet ones, crossing the floor. Mine stop at the door.",
+  push:"I can see the water in them. They're still filling.",
+  gone:"Floor's dry. Bone dry. I stood in that water an hour ago.",
+  art:function(){ var s='<g fill="#4E6668" opacity=".7">';
+    for(var i=0;i<6;i++){ s+='<ellipse cx="'+(120+i*98)+'" cy="'+(392+(i%2)*16)+'" rx="13" ry="8"/>'; }
+    return s+'</g>'; }},
+
+ {id:"door2", where:["radio_room","stairwell","lamp_room"],
+  obs:"a doorway in a wall that had none",
+  say:"There's a door here. Eleven years I've worked this rock. That wall is solid.",
+  push:"It has hinges. It has a handle. Should I open it?",
+  gone:"The door's gone. Just stone. I put my hand where the handle was.",
+  art:function(){ return '<rect x="608" y="132" width="112" height="186" fill="#050809" stroke="#2E3A3C" stroke-width="3"/><circle cx="700" cy="228" r="6" fill="#3A4749"/>'; }},
+
+ {id:"coat", where:["radio_room","door","stairwell"],
+  obs:"a green oilskin coat hanging on a hook",
+  say:"My coat's on the hook. I'm wearing my coat.",
+  push:"Torn left shoulder. Same tear. I'm looking at the back of my own head next.",
+  gone:"Hook's empty now. I'd almost rather it wasn't.",
+  art:function(){ return '<rect x="86" y="146" width="6" height="20" fill="#3A4749"/><path d="M62 166 q28 -12 56 0 l10 96 q-38 12 -76 0 z" fill="#16241F" stroke="#243A32" stroke-width="1.5"/>'; }},
+
+ {id:"chair", where:["radio_room","lamp_room"],
+  obs:"a chair turned to face into the corner",
+  say:"Someone's turned this chair to face the wall. Why would anyone do that.",
+  push:"I didn't move it. There's nobody else to move it.",
+  gone:"Chair's back at the desk. Pushed in neat.",
+  art:function(){ return '<g fill="#141D1F" stroke="#26312F" stroke-width="1.6"><rect x="654" y="252" width="60" height="10"/><rect x="700" y="176" width="12" height="80"/><rect x="658" y="262" width="8" height="48"/><rect x="702" y="262" width="8" height="48"/></g>'; }},
+
+ {id:"radio_on", where:["radio_room"],
+  obs:"the radio set powered on and receiving",
+  say:"The set's live. Dead three days and now the valves are warm.",
+  push:"There's someone breathing on the other end of it. It isn't you.",
+  gone:"Set's cold again. Dust on the key.",
+  art:function(){ return '<circle cx="300" cy="224" r="7" fill="#F2C57C"/><circle cx="322" cy="224" r="7" fill="#F2C57C" opacity=".8"/><circle cx="344" cy="224" r="7" fill="#C9564A"/><rect x="278" y="196" width="128" height="54" rx="3" fill="none" stroke="#7E5A1D" stroke-width="2" opacity=".7"/>'; }},
+
+ {id:"hand", where:["lamp_room"],
+  obs:"a handprint on the outside face of the glass",
+  say:"There's a hand on the glass. We are a hundred feet above the water.",
+  push:"It moved. Tell me it didn't move.",
+  gone:"Glass is clean. Rain's washed it, that's all. That's all.",
+  art:function(){ return '<g fill="#7E9A98" opacity=".38" transform="translate(214,150) scale(1.5)"><ellipse cx="0" cy="0" rx="17" ry="21"/><rect x="-15" y="-30" width="6" height="20" rx="3"/><rect x="-6" y="-35" width="6" height="24" rx="3"/><rect x="3" y="-33" width="6" height="22" rx="3"/><rect x="12" y="-27" width="6" height="17" rx="3"/></g>'; }}
+];
+
+/* ============ state ============ */
+var S={loc:"lamp_room", clip:1, tension:0, moves:0, found:0, busy:false,
+       cur:null, seen:[], hist:{}, started:false, lastIdle:0};
+var el=function(id){ return document.getElementById(id); };
+var scene=el("scene"), subs=el("subs"), log=el("log");
+var pick=function(a){ return a[Math.floor(Math.random()*a.length)]; };
+
+function draw(){
+  var html=SCENES[S.loc]();
+  if(S.cur) html+=S.cur.art(S.loc);
+  scene.innerHTML=html;
+}
+function say(t){
+  subs.classList.remove("on");
+  setTimeout(function(){ subs.textContent=t; subs.classList.add("on"); },140);
+  push("wren","WREN",t);
+}
+function push(cls,who,txt){
+  var d=document.createElement("div"); d.className="line "+cls;
+  d.innerHTML='<span class="who">'+who+'</span><span class="txt"></span>';
+  d.lastChild.textContent=txt; log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function hud(lat){
+  el("hLat").textContent=(lat/1000).toFixed(1)+"s";
+  var b=1+Math.floor(Math.random()*3); el("hBuf").textContent=b+(b===1?" clip":" clips");
+  el("hCon").textContent=(0.86+Math.random()*0.11).toFixed(2);
+  el("hAno").textContent=String(S.found);
+  el("cAno").classList.toggle("hot", S.found>0);
+  el("locPill").textContent="clip "+S.clip+" \u00b7 "+LOCNAME[S.loc];
+}
+function state(on,txt){
+  var p=el("statePill");
+  p.classList.toggle("live",on); p.classList.toggle("idle",!on);
+  el("stateTxt").textContent=txt;
+}
+
+/* ============ the observer step ============ */
+/* the renderer may place an entity that was never requested.
+   this compares what the scene contains against what was asked for. */
+function render(loc){
+  var prior=S.hist[loc];                       // what was here last time
+  var carry=null, vanished=null;
+
+  if(prior && Math.random()<0.42) carry=prior; // sometimes it is still there
+  else if(prior) vanished=prior;
+
+  var born=null;
+  if(!carry){
+    var due=(S.found===0 && S.moves>=2);       // everyone meets the mechanic
+    var p=due?1:Math.min(0.15+S.found*0.12,0.55);
+    if(Math.random()<p){
+      var pool=ANOM.filter(function(a){
+        return a.where.indexOf(loc)>=0 && S.seen.indexOf(a.id)<0;
+      });
+      if(pool.length) born=pick(pool);
+    }
+  }
+  S.cur=carry||born;
+  S.hist[loc]=S.cur;
+  draw();
+  return {born:born, carry:carry, vanished:vanished};
+}
+
+/* ============ turn engine ============ */
+var MOVE=[
+ {k:["lamp","top","up","upstairs","light room","gallery","tower"],to:"lamp_room"},
+ {k:["stair","down","downstairs","descend","steps"],to:"stairwell"},
+ {k:["radio","set","transmit","comms","signal","wireless"],to:"radio_room"},
+ {k:["door","outside","bottom","base","ground","out"],to:"door"}
+];
+function intent(t){
+  t=t.toLowerCase();
+  for(var i=0;i<MOVE.length;i++){
+    for(var j=0;j<MOVE[i].k.length;j++){
+      if(t.indexOf(MOVE[i].k[j])>=0) return {type:"move",to:MOVE[i].to};
+    }
+  }
+  if(/(not real|nobody|no one|isn'?t there|imagin|calm|you'?re fine|nothing there|made it up|not possible)/.test(t)) return {type:"push"};
+  if(/(look|see|describe|what.*there|check|around|examine|watch)/.test(t)) return {type:"look"};
+  if(/(run|leave|get out|hide|escape|flee|lock)/.test(t)) return {type:"flee"};
+  if(/(who|why|what|how|when|where)/.test(t)) return {type:"ask"};
+  if(/(hello|hi |hey|wren|you there|copy|over)/.test(t)) return {type:"hail"};
+  return {type:"idle"};
+}
+
+var LOOK={
+ lamp_room:["Lamp's turning. Rain coming at the glass sideways. Nothing on the water.",
+            "Just the light and the weather. Same as it's been for three days.",
+            "I can see maybe forty feet before it's all black out there."],
+ stairwell:["Wet stone. The rail's cold. It's a long way down and it echoes.",
+            "Steps and more steps. Water running down the wall on my left."],
+ radio_room:["Charts on the wall, damp at the corners. The set. One bulb.",
+             "Smells of solder and salt in here. Nothing's changed."],
+ door:["The iron door. Wind's driving rain through the gap at the bottom.",
+       "Just the door. I'm not opening it in this."]
+};
+var HAIL=["I hear you. Go ahead.","Still here. Where else would I be.","Reading you. Say again if it breaks up."];
+var IDLE=["Say that again, you're breaking up.","Didn't catch that. The set's poor tonight.","Copy. Not sure what you want me to do with that."];
+var FLEE=["Leave for where? It's forty miles of water and I've no boat.","I can't leave. That's rather the arrangement.","And go where. Talk sense."];
+var AMB=["Wind's got up again.","Lamp's still turning. That's something.","Nothing on the horizon. Third night.","I'll not sleep tonight either.","Rain hasn't stopped since Tuesday."];
+
+function turn(text){
+  if(S.busy) return;
+  var it=intent(text);
+  S.busy=true; el("say").disabled=true; el("send").disabled=true;
+  state(true,"generating live");
+
+  var lat=1500+Math.random()*1900;
+  setTimeout(function(){
+    S.clip++;
+    var r={born:null,carry:null,vanished:null};
+
+    if(it.type==="move" && it.to!==S.loc){ S.loc=it.to; S.moves++; r=render(S.loc); }
+    else if(it.type==="move"){ r={born:null,carry:S.cur,vanished:null}; draw(); }
+    else { draw(); }
+
+    if(r.born){
+      S.found++; S.tension=Math.min(S.tension+2,6); S.seen.push(r.born.id);
+      push("sys","OBS","unrequested in frame: "+r.born.obs);
+    }
+    hud(lat);
+    state(false,"holding");
+
+    var reply;
+    if(r.born) reply=r.born.say;
+    else if(r.vanished && Math.random()<0.8) reply=r.vanished.gone;
+    else if(it.type==="push") reply=S.cur?S.cur.push:pick(["There's nothing to be wrong about. I'm telling you what I see.","Fine. Then I'm seeing things. That's meant to comfort me?"]);
+    else if(it.type==="flee") reply=pick(FLEE);
+    else if(it.type==="look") reply=S.cur? S.cur.say : pick(LOOK[S.loc]);
+    else if(it.type==="hail") reply=pick(HAIL);
+    else if(it.type==="move") reply=pick(["Moving. Give me a moment.","On my way down. Mind the step.","Right. Going through."]);
+    else if(it.type==="ask") reply=S.cur? pick(["I don't know. You're the one with answers, you're the one with a radio.","Ask it yourself, it's stood right there.",S.cur.push]) : pick(["Couldn't tell you. Nothing's happened out here in three days.","Eleven years I've kept this light. Never a night like this one."]);
+    else reply=pick(IDLE);
+
+    if(S.tension>=4 && Math.random()<0.35) reply=reply+" Stay on this channel.";
+    say(reply);
+    S.lastIdle=Date.now();
+
+    S.busy=false; el("say").disabled=false; el("send").disabled=false; el("say").focus();
+  },lat);
+}
+
+/* ============ ambient beat (the idle bank) ============ */
+setInterval(function(){
+  if(!S.started||S.busy) return;
+  if(Date.now()-S.lastIdle<26000) return;
+  S.lastIdle=Date.now(); S.clip++;
+  hud(900+Math.random()*400);
+  say(S.cur? pick(["It hasn't moved. I've been counting.","Still there. I'm not going to keep saying it.","I'd rather you said something."]) : pick(AMB));
+},4000);
+
+/* ============ rain ============ */
+var cv=el("rain"), cx=cv.getContext("2d"), drops=[];
+function sizeRain(){ cv.width=cv.clientWidth; cv.height=cv.clientHeight;
+  drops=[]; var n=Math.round(cv.width/7);
+  for(var i=0;i<n;i++) drops.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+    l:8+Math.random()*20,v:5+Math.random()*9}); }
+function rain(){
+  cx.clearRect(0,0,cv.width,cv.height);
+  cx.strokeStyle="rgba(186,206,205,.34)"; cx.lineWidth=1;
+  for(var i=0;i<drops.length;i++){ var d=drops[i];
+    cx.beginPath(); cx.moveTo(d.x,d.y); cx.lineTo(d.x-3,d.y+d.l); cx.stroke();
+    d.y+=d.v; d.x-=1.1; if(d.y>cv.height){ d.y=-d.l; d.x=Math.random()*cv.width; } }
+  requestAnimationFrame(rain);
+}
+window.addEventListener("resize",sizeRain);
+
+/* ============ boot ============ */
+var CHIPS=["Go down to the radio room","What can you see?","Check the door","There's nobody there","Go back up to the lamp"];
+CHIPS.forEach(function(c){
+  var b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=c;
+  b.onclick=function(){ if(S.busy||!S.started) return; el("say").value=c;
+    el("entry").dispatchEvent(new Event("submit",{cancelable:true,bubbles:true})); };
+  el("suggest").appendChild(b);
+});
+
+el("entry").addEventListener("submit",function(e){
+  e.preventDefault();
+  var v=el("say").value.trim();
+  if(!v||S.busy||!S.started) return;
+  push("you","YOU",v); el("say").value=""; turn(v);
+});
+
+el("begin").addEventListener("click",function(){
+  el("gate").classList.add("gone");
+  S.started=true; S.lastIdle=Date.now();
+  el("say").disabled=false; el("send").disabled=false; el("say").focus();
+  hud(2100); state(false,"holding");
+  push("sys","OBS","channel open \u00b7 lamp room \u00b7 nothing unaccounted for");
+  say("Lighthouse 4, receiving. Third night with no boat. Say what you need.");
+});
+
+draw(); sizeRain(); rain(); hud(0);
+el("hLat").textContent="\u2014"; el("hBuf").textContent="\u2014"; el("hCon").textContent="\u2014";
+})();
+</script>
