@@ -405,11 +405,15 @@ function render(loc){
 }
 
 /* ============ turn engine ============ */
+/* specific room words are checked before directional ones, otherwise
+   "go down to the radio room" matches "down" and lands in the stairwell */
 var MOVE=[
- {k:["lamp","top","up","upstairs","light room","gallery","tower"],to:"lamp_room"},
- {k:["stair","down","downstairs","descend","steps"],to:"stairwell"},
- {k:["radio","set","transmit","comms","signal","wireless"],to:"radio_room"},
- {k:["door","outside","bottom","base","ground","out"],to:"door"}
+ {k:["radio","transmit","comms","wireless","valve"],to:"radio_room"},
+ {k:["lamp","light room","gallery","top of the tower"],to:"lamp_room"},
+ {k:["door","outside","bottom","base","ground floor"],to:"door"},
+ {k:["stair","downstairs","descend","steps"],to:"stairwell"},
+ {k:["up","upstairs","tower"],to:"lamp_room"},
+ {k:["down"],to:"stairwell"}
 ];
 function intent(t){
   t=t.toLowerCase();
