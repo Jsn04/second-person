@@ -110,8 +110,8 @@ button:disabled{opacity:.4; cursor:default}
   from{transform:scale(var(--sc,1.06)) translate(0,0)}
   to{transform:scale(var(--sc,1.06)) translate(var(--dx,1.2%),var(--dy,.6%))}}
 
-.sway{transform-origin:center bottom; animation:sway 7.5s ease-in-out infinite alternate}
-@keyframes sway{from{transform:translateX(-2px) rotate(-.3deg)}to{transform:translateX(2px) rotate(.3deg)}}
+.sway{transform-origin:50% 100%; animation:sway 7.5s ease-in-out infinite alternate}
+@keyframes sway{from{transform:rotate(-.45deg)}to{transform:rotate(.45deg)}}
 
 .mist{animation:mist 30s linear infinite}
 @keyframes mist{from{transform:translateX(-14%)}to{transform:translateX(14%)}}
@@ -185,7 +185,7 @@ button:disabled{opacity:.4; cursor:default}
 var NS="http://www.w3.org/2000/svg";
 function figure(x,y,s,tone){
   tone=tone||"#0A0F10";
-  return '<g class="sway" transform="translate('+x+','+y+') scale('+s+')" opacity=".97">'+
+  return '<g transform="translate('+x+','+y+') scale('+s+')" opacity=".97"><g class="sway">'+
     '<ellipse cx="0" cy="-96" rx="15" ry="18" fill="'+tone+'" stroke="#39433F" stroke-width="1.2"/>'+
     '<path d="M-26 -80 q26 -12 52 0 l10 62 q-36 12 -72 0 z" fill="'+tone+'" stroke="#333E3A" stroke-width="1.2"/>'+
     '<path d="M-26 -80 q26 -12 52 0" fill="none" stroke="#5D6863" stroke-width="1.6" opacity=".75"/>'+
@@ -195,7 +195,7 @@ function figure(x,y,s,tone){
     '<path d="M-13 -74 q13 -6 26 0 l-3 9 q-10 -4 -20 0 z" fill="#7E2F2B"/>'+
     '<circle cx="-6" cy="-98" r="5.5" fill="none" stroke="#5B6360" stroke-width="1.6"/>'+
     '<circle cx="7" cy="-98" r="5.5" fill="none" stroke="#5B6360" stroke-width="1.6"/>'+
-  '</g>';
+  '</g></g>';
 }
 function stranger(x,y,s){
   return '<g transform="translate('+x+','+y+') scale('+s+')">'+
@@ -416,19 +416,68 @@ var MOVE=[
  {k:["down"],to:"stairwell"}
 ];
 function intent(t){
-  t=t.toLowerCase();
+  t=t.toLowerCase().trim();
+  if(/^(y|yes|yeah|yep|yup|sure|ok|okay|aye|do it|go on|go ahead|please|open it|try it|i do)\b/.test(t)) return {type:"affirm"};
+  if(/^(n|no|nope|don'?t|do not|stop|wait|leave it|not yet|never)\b/.test(t)) return {type:"deny"};
+  if(/(open|unlock|push it|pull it|handle|knob)/.test(t)) return {type:"act",verb:"open"};
+  if(/(listen|hear|quiet|silence|sound)/.test(t)) return {type:"act",verb:"listen"};
+  if(/(shout|call out|yell|say hello to|talk to|ask (them|it|him|her)|speak to)/.test(t)) return {type:"act",verb:"call"};
+  if(/(touch|grab|take|pick up|reach|feel)/.test(t)) return {type:"act",verb:"touch"};
   for(var i=0;i<MOVE.length;i++){
     for(var j=0;j<MOVE[i].k.length;j++){
       if(t.indexOf(MOVE[i].k[j])>=0) return {type:"move",to:MOVE[i].to};
     }
   }
-  if(/(not real|nobody|no one|isn'?t there|imagin|calm|you'?re fine|nothing there|made it up|not possible)/.test(t)) return {type:"push"};
-  if(/(look|see|describe|what.*there|check|around|examine|watch)/.test(t)) return {type:"look"};
+  if(/(not real|nobody|no one|isn'?t there|imagin|calm|you'?re fine|nothing there|made it up|not possible|lying)/.test(t)) return {type:"push"};
+  if(/(look|see|describe|what.*there|check|around|examine|watch|window)/.test(t)) return {type:"look"};
   if(/(run|leave|get out|hide|escape|flee|lock)/.test(t)) return {type:"flee"};
-  if(/(who|why|what|how|when|where)/.test(t)) return {type:"ask"};
-  if(/(hello|hi |hey|wren|you there|copy|over)/.test(t)) return {type:"hail"};
+  if(/(your name|who are you|how long|how old|family|alone|boat|storm|weather|sleep|eat|scared|afraid|the light|keeper)/.test(t)) return {type:"topic",t:t};
+  if(/^(who|why|what|how|when|where)/.test(t)) return {type:"ask"};
+  if(/(hello|^hi\b|^hey|wren|you there|copy|over|thank)/.test(t)) return {type:"hail"};
   return {type:"idle"};
 }
+
+var ACT={
+  open:{ yes:["I've got my hand on the handle. It's warm. Why is it warm.",
+              "It opens inward. That's wrong, everything here opens out."],
+         no:["Nothing here to open but the weather."] },
+  listen:{ yes:["Breathing. Slow, and not in time with mine.",
+                "The rain stops about a foot from it. I can hear where it stops."],
+           no:["Rain. Wind. The lamp gear turning. That's the lot."] },
+  call:{ yes:["Hello? ... Nothing. It didn't even look up.",
+              "I said hello. It answered in my own voice."],
+         no:["There's nobody to call to. That's rather the trouble."] },
+  touch:{ yes:["I'm not touching it. Ask me again and I'll come up that radio instead.",
+               "It's colder than the stone. That's all you're getting."],
+          no:["Touch what? There's nothing in here but me."] }
+};
+
+var AFFIRM={ anom:["Right. Right, then I'm going closer.",
+                   "You're sure. You're a voice in a box telling me you're sure.",
+                   "Alright. But you're staying on this channel while I do it."],
+             none:["Alright.","Copy that.","Understood. Give me a moment."] };
+var DENY={  anom:["Good. I didn't want to.","Fine. I'll stand here and watch it instead."],
+            none:["Fair enough.","Suits me."] };
+var TOPIC=[["your name|who are you","Wren. Keeper, Lighthouse 4. Eleven years."],
+           ["how long|keeper","Eleven years on this rock. Three days since the boat was due."],
+           ["alone|family","Just me. That's the job. It's never bothered me before this week."],
+           ["boat","Due Tuesday. It's Friday. Nobody's answered on any channel but yours."],
+           ["storm|weather","Force nine, maybe worse by morning. It's been building since Tuesday."],
+           ["sleep|eat","I've eaten. I haven't slept. I'd rather not, tonight."],
+           ["scared|afraid","I'm not frightened. I'm careful. There's a difference and I'd like to keep it."],
+           ["the light","She's turning. Whatever else goes wrong here, she turns."]];
+function topicReply(t){
+  for(var i=0;i<TOPIC.length;i++) if(new RegExp(TOPIC[i][0]).test(t)) return TOPIC[i][1];
+  return null;
+}
+var FALL={ anom:["I'm still looking at it, in case that's slipped your mind.",
+                 "That's no use to me with this stood in front of me.",
+                 "Say something I can act on."],
+           none:["Mm. Go on.","I'll take your word for it.",
+                 "You'll have to give me something I can actually do.",
+                 "Copy. Not much I can do with that.",
+                 "Say it plain. It's late and I'm tired.",
+                 "That came through, but it didn't mean anything."] };
 
 var LOOK={
  lamp_room:["Lamp's turning. Rain coming at the glass sideways. Nothing on the water.",
@@ -475,13 +524,17 @@ function turn(text){
     var reply;
     if(r.born) reply=r.born.say;
     else if(r.vanished && Math.random()<0.8) reply=r.vanished.gone;
+    else if(it.type==="affirm") reply=pick(S.cur?AFFIRM.anom:AFFIRM.none);
+    else if(it.type==="deny")   reply=pick(S.cur?DENY.anom:DENY.none);
+    else if(it.type==="act")    reply=pick(S.cur?ACT[it.verb].yes:ACT[it.verb].no);
+    else if(it.type==="topic")  reply=topicReply(it.t)||pick(FALL.none);
     else if(it.type==="push") reply=S.cur?S.cur.push:pick(["There's nothing to be wrong about. I'm telling you what I see.","Fine. Then I'm seeing things. That's meant to comfort me?"]);
     else if(it.type==="flee") reply=pick(FLEE);
     else if(it.type==="look") reply=S.cur? S.cur.say : pick(LOOK[S.loc]);
     else if(it.type==="hail") reply=pick(HAIL);
     else if(it.type==="move") reply=pick(["Moving. Give me a moment.","On my way down. Mind the step.","Right. Going through."]);
     else if(it.type==="ask") reply=S.cur? pick(["I don't know. You're the one with answers, you're the one with a radio.","Ask it yourself, it's stood right there.",S.cur.push]) : pick(["Couldn't tell you. Nothing's happened out here in three days.","Eleven years I've kept this light. Never a night like this one."]);
-    else reply=pick(IDLE);
+    else reply=pick(S.cur?FALL.anom:FALL.none);
 
     if(S.tension>=4 && Math.random()<0.35) reply=reply+" Stay on this channel.";
     say(reply);
