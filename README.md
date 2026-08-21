@@ -1,26 +1,38 @@
-# Second Person
+# Light and the Ledger
+
+**You are the voice. She can't see. You can.**
 
 A playable prototype of a hackathon project built on world models.
 
-You are a voice on a radio. Wren keeps a lighthouse and cannot see you. Tell her
-where to go and what to look at. A scene generator draws the room, and it
-sometimes puts things in it that were never requested. An observer step compares
-what was asked for against what was rendered, and hands anything unaccounted for
-to Wren as something she has just seen. She trusts her own eyes over you.
+Wren keeps a lighthouse forty miles out. Her radio reaches one person: you. You
+tell her where to go and what to look at, and the scene renders. It does not
+always render what you asked for.
+
+Sometimes she can see the difference and reacts on her own. Often the thing is
+behind her, or past the reach of her lamp, and then only you know. You get three
+choices: tell her, lie, or say nothing.
+
+She has a job. The lamp burns down whether she is tending it or not, so telling
+her the truth costs you her attention and lying keeps her on task. Anything she
+learns becomes a concern she wants to act on, and concerns about the same subject
+merge into something larger that nobody wrote.
+
+Everything goes in the Ledger: what the frame showed, what you said, whether they
+matched. Three endings: the light goes out, she stops trusting you, or you both
+reach morning.
 
 Play it: https://jsn04.github.io/second-person/
 
-## What is real and what is stubbed
+## Real vs stubbed
 
-Real: the anomaly injection, the observer diff, the buffering and pacing, Wren's
-memory of what she has seen, the escalation, and the persist/vanish behaviour
-when you leave a room and return.
+Real: the unrequested-object loop, the observer diff, the visible/blind split,
+concerns and merging, trust, memory, the light clock, the Ledger, the endings.
 
 Stubbed: the scene is drawn procedurally instead of by a video world model, and
 Wren's lines come from a local engine instead of a language model. In the full
-build each of those is a single file.
+build each of those is one file.
 
 ## Running it
 
-One self-contained HTML file, no build step and no dependencies. Open
-`index.html` in any browser, online or off.
+One self-contained HTML file. No build step, no dependencies, no network calls.
+Open `index.html` in any browser, online or off.
