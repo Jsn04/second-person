@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Kirkwall</title>
+<style>
+:root{
+  --ground:#040C0D; --panel:#0A1618; --panel2:#0F2022; --raise:#16292B;
+  --line:rgba(214,232,228,.10); --line2:rgba(214,232,228,.2);
+  --bone:#DFE9E5; --dim:#8CA09B; --faint:#61756F;
+  --lamp:#E0B061; --lamphi:#F6DBA6; --alarm:#CF5A4C; --alarmhi:#EA9184; --good:#5FB394;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  --voice:'Iowan Old Style','Palatino Linotype',Palatino,'Book Antiqua',Georgia,serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--ground);color:var(--bone);font-family:var(--mono);
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;overflow:hidden}
+
+.screen{position:fixed;inset:0;display:none;overflow:auto}
+.screen.on{display:block}
+
+/* ---------- briefing + ending ---------- */
+.sheet{max-width:760px;margin:0 auto;padding:56px 28px 72px;display:flex;flex-direction:column;gap:22px}
+.eyebrow{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--lamp)}
+h1{font-family:var(--voice);font-weight:300;font-size:46px;line-height:1.05;margin:0;letter-spacing:.01em}
+h1 em{font-style:italic;color:var(--lamphi)}
+.sheet p{margin:0;color:var(--dim);font-size:14.5px;line-height:1.8;max-width:62ch}
+.sheet p b{color:var(--bone);font-weight:400}
+.rule{height:1px;background:var(--line);margin:4px 0}
+.pairs{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.pair{border-left:2px solid var(--line2);padding-left:13px;border-radius:0}
+.pair b{display:block;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--lamp);margin-bottom:3px}
+.pair span{font-size:13px;color:var(--dim);line-height:1.65}
+
+button{background:var(--raise);color:var(--bone);border:1px solid var(--line2);border-radius:3px;
+  height:44px;padding:0 20px;font-family:var(--mono);font-size:12px;letter-spacing:.1em;
+  text-transform:uppercase;cursor:pointer;transition:background .15s,border-color .15s}
+button:hover:not(:disabled){background:#1E3436;border-color:var(--lamp)}
+button:focus-visible{outline:2px solid var(--lamp);outline-offset:2px}
+button:disabled{opacity:.35;cursor:default}
+.big{align-self:flex-start}
+
+/* ---------- dive ---------- */
+.dive{display:grid;grid-template-columns:1fr 330px;grid-template-rows:1fr auto;
+  height:100%;gap:12px;padding:12px}
+@media (max-width:900px){ .dive{grid-template-columns:1fr;grid-template-rows:auto auto auto;overflow:auto} }
+
+.stage{position:relative;grid-row:1;border:1px solid var(--line);border-radius:3px;
+  overflow:hidden;background:#030A0B;min-height:280px}
+.stage svg,.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.silt{pointer-events:none}
+.vig{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(108% 80% at 50% 46%, transparent 26%, rgba(2,6,7,.55) 72%, rgba(2,6,7,.92) 100%)}
+
+.tag{position:absolute;top:11px;background:rgba(3,9,10,.7);border:1px solid var(--line);
+  border-radius:3px;padding:5px 10px;font-size:10.5px;letter-spacing:.05em;color:var(--dim)}
+.tag.l{left:11px} .tag.r{right:11px}
+.tag .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--alarm);
+  margin-right:6px;vertical-align:1px}
+.tag.idle .dot{background:var(--faint)}
+.tag.live .dot{animation:bp 1.4s ease-in-out infinite}
+@keyframes bp{50%{opacity:.2}}
+
+.shotline{position:absolute;left:11px;top:44px;max-width:60%;background:rgba(3,9,10,.6);
+  border-left:2px solid var(--lamp);padding:5px 10px;font-size:10.5px;line-height:1.5;color:rgba(223,233,229,.62)}
+.shotline b{display:block;font-weight:400;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--lamp)}
+
+.onlyyou{position:absolute;left:50%;top:11px;transform:translateX(-50%);z-index:4;
+  background:var(--alarm);color:#180504;border-radius:3px;padding:6px 14px;
+  font-size:11px;letter-spacing:.15em;text-transform:uppercase;display:none}
+.onlyyou.on{display:block}
+.mark{position:absolute;border:2px dashed var(--alarm);display:none;z-index:3}
+.mark.on{display:block}
+.mark b{position:absolute;left:-2px;background:var(--alarm);color:#180504;font-weight:400;
+  font-size:9.5px;letter-spacing:.1em;padding:1px 6px;white-space:nowrap}
+.mark.low b{top:-19px} .mark.high b{bottom:-19px}
+
+.subs{position:absolute;left:0;right:0;bottom:0;padding:22px 22px 16px;text-align:center;z-index:2}
+.subs:before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(transparent,rgba(2,7,8,.86) 58%)}
+.subs p{position:relative;margin:0;font-family:var(--voice);font-size:19px;line-height:1.45;
+  color:#F2F7F4;text-wrap:balance;opacity:0;transition:opacity .45s}
+.subs p.on{opacity:1}
+
+.side{grid-row:1;display:flex;flex-direction:column;gap:10px;min-height:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:11px 13px}
+.card h3{margin:0 0 9px;font-size:9.5px;font-weight:400;letter-spacing:.16em;text-transform:uppercase;color:var(--faint)}
+#mapsvg{width:100%;height:auto;display:block}
+.node{cursor:default}
+.node.go{cursor:pointer}
+.node.go:hover circle{stroke:var(--lamp);stroke-width:3}
+
+.meter{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:5px}
+.meter em{font-style:normal;font-size:13px}
+.meter i{font-style:normal;font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+.bar{height:5px;background:rgba(214,232,228,.09);border-radius:3px;overflow:hidden}
+.bar u{display:block;height:100%;text-decoration:none;transition:width .45s,background .45s}
+.ledger{max-height:112px;overflow-y:auto;display:flex;flex-direction:column;gap:7px}
+.ledger li{list-style:none;font-size:11px;line-height:1.5;border-left:2px solid var(--line2);padding-left:9px}
+.ledger li em{font-style:normal;display:block;color:var(--bone)}
+.ledger li span{color:var(--faint)}
+.ledger ul{margin:0;padding:0}
+.tagchip{display:inline-block;font-size:9px;letter-spacing:.1em;text-transform:uppercase;
+  padding:1px 5px;border-radius:2px;margin-left:5px}
+.c-truth{background:rgba(95,179,148,.18);color:#8CD2B4}
+.c-lie{background:rgba(207,90,76,.2);color:var(--alarmhi)}
+.c-silence{background:rgba(214,232,228,.1);color:var(--dim)}
+.c-caught{background:var(--alarm);color:#180504}
+
+.bottom{grid-column:1/-1;grid-row:2;display:flex;flex-direction:column;gap:9px}
+.relay{display:none;border:1px solid var(--alarm);border-radius:3px;background:rgba(207,90,76,.1);
+  padding:13px 15px;gap:12px;align-items:center;flex-wrap:wrap}
+.relay.on{display:flex}
+.relay p{margin:0;flex:1 1 280px;font-family:var(--voice);font-size:16px;color:#F6E9E5}
+.relay p b{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--alarmhi);font-weight:400;margin-bottom:2px}
+.relay button{border-color:var(--alarm);height:40px}
+.relay button:hover{background:rgba(207,90,76,.22);border-color:var(--alarmhi)}
+
+.talk{display:flex;gap:9px}
+.log{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:10px 12px;
+  height:104px;overflow-y:auto;font-size:12px;line-height:1.6;display:flex;flex-direction:column;gap:6px}
+.line{display:flex;gap:9px}
+.who{flex:none;width:42px;color:var(--faint);font-size:10px;letter-spacing:.09em;padding-top:2px}
+.line.you .txt{color:var(--dim)}
+.line.gwen .txt{color:var(--bone)}
+.line.obs .txt{color:var(--lamp);font-size:11px}
+.line.obs .who{color:var(--lamp);opacity:.7}
+.line.blind .txt{color:var(--alarmhi);font-size:11px}
+.line.blind .who{color:var(--alarm)}
+input[type=text]{flex:1;min-width:0;background:var(--panel2);color:var(--bone);
+  border:1px solid var(--line2);border-radius:3px;padding:0 13px;height:42px;
+  font-family:var(--mono);font-size:13px}
+input[type=text]::placeholder{color:var(--faint)}
+input[type=text]:focus{outline:none;border-color:var(--lamp);box-shadow:0 0 0 1px rgba(224,176,97,.28)}
+
+.log::-webkit-scrollbar,.ledger::-webkit-scrollbar{width:6px}
+.log::-webkit-scrollbar-thumb,.ledger::-webkit-scrollbar-thumb{background:var(--line2);border-radius:3px}
+
+.endstats{display:flex;gap:22px;flex-wrap:wrap}
+.endstats div em{font-style:normal;display:block;font-size:24px;font-variant-numeric:tabular-nums}
+.endstats div span{font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--faint)}
+.verdict{font-family:var(--voice);font-size:19px;line-height:1.5;color:var(--bone);max-width:56ch}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</head>
+<body>
+
+<!-- ============ SCREEN 1 ============ -->
+<section class="screen on" id="s-brief">
+  <div class="sheet">
+    <div class="eyebrow">North Sea &middot; 90 metres &middot; day eleven</div>
+    <h1>The <em>Kirkwall</em></h1>
+    <p><b>Gwen is five rooms deep inside a wreck and she cannot see.</b> Her lamp reaches four metres. The silt is up. The guide line she swam in on is gone.</p>
+    <p>You are Topside. You have the ship's plans and a small ROV drifting behind her. She has your voice.</p>
+    <div class="rule"></div>
+    <div class="pairs">
+      <div class="pair"><b>You route her</b><span>One room per instruction. Click a room on the map, or type it.</span></div>
+      <div class="pair"><b>Air only goes down</b><span>Every move costs. The cargo hold is a long swim. The shaft goes nowhere.</span></div>
+      <div class="pair"><b>She can't always see</b><span>The renderer puts things in rooms. Sometimes she spots them. Sometimes only you do.</span></div>
+      <div class="pair"><b>Then you choose</b><span>Tell her, lie, or say nothing. Warn her and she may refuse the room entirely.</span></div>
+    </div>
+    <div class="rule"></div>
+    <p><b>Her job is done.</b> The recorder is cut free and clipped to her harness. All that is left is getting her out through the breach.</p>
+    <button class="big" id="begin">Open the channel</button>
+    <p style="font-size:11.5px;color:var(--faint);margin-top:8px">Prototype. The scene is drawn procedurally rather than generated by a world model, and Gwen's lines come from a local engine rather than a language model. Every other system here is the real one.</p>
+  </div>
+</section>
+
+<!-- ============ SCREEN 2 ============ -->
+<section class="screen" id="s-dive">
+  <div class="dive">
+    <div class="stage" id="stage">
+      <svg id="scene" viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true"></svg>
+      <canvas class="silt" id="silt"></canvas>
+      <div class="vig"></div>
+      <div class="tag l idle" id="stateTag"><span class="dot"></span><span id="stateTxt">holding</span></div>
+      <div class="tag r" id="locTag">the engine room</div>
+      <div class="shotline"><b>shot sent to renderer</b><span id="shotTxt">.</span></div>
+      <div class="onlyyou" id="onlyyou">only you can see this</div>
+      <div class="mark low" id="mark"><b>SHE CANNOT SEE THIS</b></div>
+      <div class="subs"><p id="subs"></p></div>
+    </div>
+
+    <div class="side">
+      <div class="card">
+        <h3>The plans</h3>
+        <svg id="mapsvg" viewBox="0 0 460 210" aria-hidden="true"></svg>
+      </div>
+      <div class="card">
+        <div class="meter"><em id="airWord">Air</em><i id="airNum">100</i></div>
+        <div class="bar"><u id="airBar" style="width:100%;background:var(--lamp)"></u></div>
+        <div class="meter" style="margin-top:10px"><em id="trustWord">She trusts you</em><i id="trustNum">70</i></div>
+        <div class="bar"><u id="trustBar" style="width:70%;background:var(--good)"></u></div>
+      </div>
+      <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+        <h3>The ledger</h3>
+        <div class="ledger" id="ledger"><span style="color:var(--faint);font-size:11.5px">Nothing recorded.</span></div>
+      </div>
+    </div>
+
+    <div class="bottom">
+      <div class="relay" id="relay">
+        <p><b>she has not seen it</b><span id="relayTxt">.</span></p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button data-r="tell">Tell her</button>
+          <button data-r="lie">Lie</button>
+          <button data-r="silent">Say nothing</button>
+        </div>
+      </div>
+      <div class="log" id="log" role="log" aria-live="polite"></div>
+      <form class="talk" id="talk" autocomplete="off">
+        <label class="sr" for="say">Speak to Gwen</label>
+        <input type="text" id="say" placeholder="go to the corridor &middot; what can you see &middot; listen" maxlength="120">
+        <button type="submit" id="send">Send</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SCREEN 3 ============ -->
+<section class="screen" id="s-end">
+  <div class="sheet">
+    <div class="eyebrow" id="endEyebrow">.</div>
+    <h1 id="endTitle">.</h1>
+    <p id="endBody">.</p>
+    <div class="rule"></div>
+    <div class="endstats" id="endStats"></div>
+    <div class="rule"></div>
+    <p class="verdict" id="endVerdict">.</p>
+    <div id="endLedger" style="display:flex;flex-direction:column;gap:8px"></div>
+    <button class="big" id="again">Take the watch again</button>
+  </div>
+</section>
+
+<script>
+(function(){
+"use strict";
+var el=function(id){return document.getElementById(id);};
+var pick=function(a){return a[Math.floor(Math.random()*a.length)];};
+var clamp=function(v,a,b){return v<a?a:v>b?b:v;};
+
+/* ================= the wreck ================= */
+var ROOMS={
+  breach:  {name:"the breach",    dist:0, cost:8,  adj:["deck"],                     x:44,  y:120},
+  deck:    {name:"the deck",      dist:1, cost:8,  adj:["breach","stair"],           x:110, y:88},
+  stair:   {name:"the stair",     dist:2, cost:8,  adj:["deck","corridor","hold"],   x:176, y:122},
+  corridor:{name:"the corridor",  dist:3, cost:8,  adj:["stair","passage"],          x:252, y:84},
+  hold:    {name:"the cargo hold",dist:3, cost:18, adj:["stair","passage"], slow:1,  x:252, y:162},
+  passage: {name:"the passage",   dist:4, cost:8,  adj:["corridor","hold","engine"], x:326, y:120},
+  engine:  {name:"the engine room",dist:5,cost:8,  adj:["passage","shaft"],          x:396, y:150},
+  shaft:   {name:"the shaft",     dist:9, cost:10, adj:["engine"], dead:1,           x:396, y:66}
+};
+var EDGES=[["breach","deck"],["deck","stair"],["stair","corridor"],["stair","hold"],
+           ["corridor","passage"],["hold","passage"],["passage","engine"],["engine","shaft"]];
+
+var SHOT={
+  breach:  {wide:"wide on Gwen at the torn breach, black water beyond",       pov:"her view: the breach, and open water past it"},
+  deck:    {wide:"following Gwen along the buckled deck rail",                 pov:"her view: the rail running away into silt"},
+  stair:   {wide:"wide on Gwen in the sideways stairwell",                     pov:"her view: steps turned on their side"},
+  corridor:{wide:"following Gwen down the narrow corridor",                    pov:"her view: cabin doors receding into black"},
+  hold:    {wide:"wide on Gwen crossing the flooded cargo hold",               pov:"her view: open water, no wall in reach"},
+  passage: {wide:"wide on Gwen in the machinery passage",                      pov:"her view: pipe runs and cable trays"},
+  engine:  {wide:"wide on Gwen at the turbine housing",                        pov:"her view: rusted casing under her glove"},
+  shaft:   {wide:"wide on Gwen in the vertical shaft",                         pov:"her view: the shaft closing in above her"}
+};
+
+/* ================= drawing ================= */
+function diver(x,y,s,back){
+  var g='<g transform="translate('+x+','+y+') scale('+s+')">';
+  g+='<path d="M4 -74 q54 -36 112 -8" fill="none" stroke="#B0653A" stroke-width="7"/>';
+  g+='<path d="M4 -74 q54 -36 112 -8" fill="none" stroke="#DE9358" stroke-width="2.5" opacity=".75"/>';
+  g+='<rect x="-31" y="-78" width="25" height="46" rx="6" fill="#1A2A28" stroke="#55706A" stroke-width="1.6"/>';
+  g+='<path d="M-23 -62 q23 -12 46 0 l9 62 q-32 11 -64 0 z" fill="#20332F" stroke="#67837C" stroke-width="1.9"/>';
+  g+='<rect x="-18" y="0" width="15" height="26" rx="3" fill="#182624" stroke="#55706A" stroke-width="1.3"/>';
+  g+='<rect x="3" y="0" width="15" height="26" rx="3" fill="#182624" stroke="#55706A" stroke-width="1.3"/>';
+  g+='<ellipse cx="-17" cy="30" rx="16" ry="7" fill="#142020" stroke="#55706A" stroke-width="1.2"/>';
+  g+='<ellipse cx="15" cy="30" rx="16" ry="7" fill="#142020" stroke="#55706A" stroke-width="1.2"/>';
+  g+='<circle cx="0" cy="-82" r="22" fill="#C99B32" stroke="#F0CE74" stroke-width="2"/>';
+  if(back){ g+='<circle cx="0" cy="-82" r="12" fill="#0A1513" opacity=".82"/>'; }
+  else{
+    g+='<path d="M-15 -89 a16 16 0 0 1 30 0 l-2 13 a16 16 0 0 1 -26 0 z" fill="#84BCC4" opacity=".55"/>';
+    g+='<path d="M-11 -91 a12 12 0 0 1 13 -4" fill="none" stroke="#E2F3F4" stroke-width="2.4" opacity=".85"/>';
+  }
+  g+='<g fill="#D3E9E6" opacity=".45"><circle cx="21" cy="-106" r="3.4"/><circle cx="28" cy="-122" r="2.3"/><circle cx="19" cy="-137" r="1.7"/></g>';
+  return g+'</g>';
+}
+function cone(x,y,spread,len,dir){
+  return '<path d="M'+x+' '+y+' L'+(x+dir*len)+' '+(y-spread)+' L'+(x+dir*len)+' '+(y+spread)+' Z" fill="#E0B061" opacity=".10"/>'+
+         '<path d="M'+x+' '+y+' L'+(x+dir*len*.55)+' '+(y-spread*.48)+' L'+(x+dir*len*.55)+' '+(y+spread*.48)+' Z" fill="#F6DBA6" opacity=".08"/>';
+}
+function bg(top,bot){ return '<rect width="800" height="450" fill="'+top+'"/><rect y="300" width="800" height="150" fill="'+bot+'"/>'; }
+function ribs(n,col){ var s='<g stroke="'+col+'" stroke-width="5" opacity=".7">';
+  for(var i=0;i<n;i++){ var x=70+i*(660/n); s+='<line x1="'+x+'" y1="40" x2="'+(x-14)+'" y2="410"/>'; } return s+'</g>'; }
+
+var SCENES={
+  engine:function(w){ var g=bg("#0A1A1B","#0D2422");
+    g+='<g fill="#16292B" stroke="#4A6B66" stroke-width="2.4"><rect x="300" y="140" width="300" height="200" rx="16"/><rect x="250" y="188" width="52" height="112" rx="8"/></g>';
+    g+='<circle cx="450" cy="242" r="46" fill="#122120" stroke="#5F8079" stroke-width="3"/><circle cx="450" cy="242" r="17" fill="#0A1414"/>';
+    g+='<g fill="none" stroke="#B0653A" stroke-width="3" opacity=".5"><path d="M312 168 q145 -12 278 0"/><path d="M312 320 q145 10 278 0"/></g>';
+    g+='<rect y="296" width="800" height="5" fill="#3E5D58"/>';
+    g+=cone(214,290,110,300,1); if(w) g+=diver(214,326,.82,false); return g; },
+  passage:function(w){ var g=bg("#09181A","#0C2120");
+    g+='<g stroke="#40605B" stroke-width="8" opacity=".85"><line x1="0" y1="60" x2="800" y2="44"/><line x1="0" y1="96" x2="800" y2="82"/><line x1="0" y1="132" x2="800" y2="120"/></g>';
+    g+='<g fill="#15282A" stroke="#486963" stroke-width="2"><rect x="80" y="190" width="120" height="110" rx="4"/><rect x="620" y="180" width="110" height="120" rx="4"/></g>';
+    g+=ribs(6,"#2C4744");
+    g+='<rect y="296" width="800" height="5" fill="#3E5D58"/>';
+    g+=cone(430,292,96,290,1); if(w) g+=diver(430,328,.84,true); return g; },
+  corridor:function(w){ var g='<rect width="800" height="450" fill="#071618"/>';
+    for(var i=6;i>=0;i--){ var k=i/6,w2=740-k*600,h=410-k*330,x=(800-w2)/2,y=(450-h)/2,sh=Math.round(9+k*20);
+      g+='<rect x="'+x+'" y="'+y+'" width="'+w2+'" height="'+h+'" fill="rgb('+sh+','+(sh+13)+','+(sh+11)+')" stroke="#3D5B57" stroke-width="'+(2.3-k*1.4)+'"/>'; }
+    g+='<g stroke="#B0653A" stroke-width="4" opacity=".45">';
+    for(var j=1;j<=4;j++){ var kk=j/6,ww=740-kk*600,xx=(800-ww)/2,hh=410-kk*330,yy=(450-hh)/2;
+      g+='<line x1="'+xx+'" y1="'+yy+'" x2="'+xx+'" y2="'+(yy+hh)+'"/><line x1="'+(xx+ww)+'" y1="'+yy+'" x2="'+(xx+ww)+'" y2="'+(yy+hh)+'"/>'; }
+    g+='</g><rect x="356" y="182" width="88" height="96" fill="#010606"/>';
+    g+='<path d="M400 330 L150 110 L650 110 Z" fill="#E0B061" opacity=".07"/>';
+    if(w) g+=diver(400,352,.84,true); return g; },
+  hold:function(w){ var g='<rect width="800" height="450" fill="#050F11"/>';
+    g+='<rect y="330" width="800" height="120" fill="#0A1A19"/><rect y="327" width="800" height="4" fill="#2E4A46"/>';
+    g+='<g stroke="#1E3532" stroke-width="4" opacity=".7"><line x1="0" y1="120" x2="800" y2="104"/></g>';
+    g+='<g fill="#0C1D1E" stroke="#28433F" stroke-width="2"><rect x="30" y="196" width="150" height="132"/><rect x="660" y="212" width="130" height="116"/></g>';
+    g+='<ellipse cx="400" cy="332" rx="360" ry="26" fill="#9FC4C0" opacity=".07"/>';
+    g+=cone(360,300,150,420,1); if(w) g+=diver(360,332,.78,false); return g; },
+  stair:function(w){ var g=bg("#08191A","#0B2120");
+    g+='<ellipse cx="230" cy="-30" rx="230" ry="150" fill="#3A2E12" opacity=".5"/>';
+    for(var i=0;i<8;i++){ var y=80+i*40,w2=250-i*10,cx=390+Math.sin(i*.85)*100;
+      g+='<path d="M'+(cx-w2/2)+' '+y+' L'+(cx+w2/2)+' '+(y+12)+' L'+(cx+w2/2-18)+' '+(y+32)+' L'+(cx-w2/2+18)+' '+(y+20)+' Z" fill="#20322D" stroke="#54726A" stroke-width="1.8"/>';
+      g+='<line x1="'+(cx-w2/2)+'" y1="'+y+'" x2="'+(cx+w2/2)+'" y2="'+(y+12)+'" stroke="#86A79B" stroke-width="2"/>'; }
+    g+='<path d="M290 96 q124 62 186 44 q-94 92 -62 172" fill="none" stroke="#78948B" stroke-width="5"/>';
+    if(w) g+=diver(410,320,.82,true); return g; },
+  deck:function(w){ var g='<rect width="800" height="450" fill="#040E10"/>';
+    g+='<rect y="0" width="800" height="230" fill="#03090B"/>';
+    g+='<path d="M0 300 L800 240 L800 450 L0 450 Z" fill="#112220" stroke="#33514D" stroke-width="2"/>';
+    g+='<path d="M0 300 L800 240" fill="none" stroke="#547570" stroke-width="3"/>';
+    g+='<g stroke="#3C5854" stroke-width="5" opacity=".85">';
+    for(var i=0;i<7;i++){ var x=60+i*118,y=300-i*8.5; g+='<line x1="'+x+'" y1="'+y+'" x2="'+x+'" y2="'+(y-64)+'"/>'; }
+    g+='</g><path d="M40 236 L790 180" fill="none" stroke="#3C5854" stroke-width="4" opacity=".8"/>';
+    g+=cone(560,300,120,470,-1); if(w) g+=diver(590,318,.98,true); return g; },
+  breach:function(w){ var g='<rect width="800" height="450" fill="#091A1B"/>';
+    g+='<path d="M236 30 L318 92 L268 166 L344 214 L262 278 L340 340 L246 418 L566 418 L522 332 L586 262 L512 206 L570 136 L488 80 L522 26 Z" fill="#010606"/>';
+    g+='<path d="M236 30 L318 92 L268 166 L344 214 L262 278 L340 340 L246 418 L566 418 L522 332 L586 262 L512 206 L570 136 L488 80 L522 26 Z" fill="none" stroke="#62837C" stroke-width="3.5"/>';
+    g+='<g fill="#B0653A" opacity=".45"><path d="M318 92 l22 -14 6 26 z"/><path d="M344 214 l26 -8 -4 26 z"/></g>';
+    g+=cone(620,300,120,-330,-1); if(w) g+=diver(634,322,.94,false); return g; },
+  shaft:function(w){ var g='<rect width="800" height="450" fill="#061214"/>';
+    g+='<rect x="250" y="0" width="300" height="450" fill="#0B1E1E" stroke="#2E4A46" stroke-width="3"/>';
+    g+='<g stroke="#B0653A" stroke-width="3" opacity=".5">';
+    for(var i=0;i<7;i++){ g+='<line x1="250" y1="'+(i*66)+'" x2="550" y2="'+(i*66-10)+'"/>'; }
+    g+='</g><ellipse cx="400" cy="20" rx="120" ry="26" fill="#3A2E12" opacity=".5"/>';
+    g+=cone(400,300,90,-260,0.0001); if(w) g+=diver(400,352,.8,false); return g; }
+};
+
+/* ================= what the renderer adds ================= */
+var ANOM=[
+ {id:"lights", obs:"a second set of lamps, far off in the murk",
+  why:["past the reach of her own lamp","behind her, out in the dark"],
+  openSay:"There's lights out there. Topside, there is no second team on this job.",
+  toldSay:"Lights. Then somebody else is down here, and nobody told me, and nobody told you.",
+  catchSay:"There have been lights out there the whole time. You had the ROV. You said nothing.",
+  gone:"Lights are out. Or they never were.",
+  belief:"a second crew that nobody logged",
+  mark:[7,22,22,30],
+  art:function(){ return '<g opacity=".95"><circle cx="120" cy="150" r="34" fill="#2B3A18" opacity=".45"/><circle cx="120" cy="150" r="9" fill="#DCEBA0"/><circle cx="172" cy="168" r="22" fill="#2B3A18" opacity=".35"/><circle cx="172" cy="168" r="5.5" fill="#C8DC8E"/></g>'; }},
+
+ {id:"shadow", obs:"a diver-shaped shadow at the edge of the lamp",
+  why:["behind her, at the limit of the light","just outside the cone"],
+  openSay:"There is someone stood at the end of this. Not moving.",
+  toldSay:"...I've turned round. He's there. Nobody wears a rig like that any more.",
+  catchSay:"There is a man in this room and I have just swum past him. You were watching.",
+  gone:"Whoever that was, they're not there now.",
+  belief:"a diver in a rig nobody has worn in thirty years",
+  mark:[9,26,17,48],
+  art:function(){ return '<g transform="translate(150,244) scale(.92)"><circle cx="0" cy="-80" r="21" fill="#020707" stroke="#3E5C5E" stroke-width="1.4"/><path d="M-23 -62 q23 -11 46 0 l8 78 q-31 9 -62 0 z" fill="#020707" stroke="#3E5C5E" stroke-width="1.4"/></g>'; }},
+
+ {id:"bubbles", obs:"bubbles rising steadily from a compartment nobody is in",
+  why:["behind her shoulder","below her, out of the light"],
+  openSay:"Something's venting back there. There's nothing left aboard to vent.",
+  toldSay:"Venting. That's not gas, that's someone breathing. You don't vent in bursts.",
+  catchSay:"That has been bubbling since I came in here. You watched me not notice.",
+  gone:"It's stopped. Whatever it was.",
+  belief:"something breathing in an empty compartment",
+  mark:[10,30,14,46],
+  art:function(){ var s='<g fill="#D3E9E6" opacity=".62">';
+    for(var i=0;i<12;i++){ s+='<circle cx="'+(120+Math.sin(i*1.6)*22)+'" cy="'+(330-i*24)+'" r="'+(7-i*.36)+'"/>'; }
+    return s+'</g>'; }},
+
+ {id:"umbilical", obs:"her umbilical running back into the wreck",
+  why:["behind her, where she cannot follow it by eye","past her shoulder in the silt"],
+  openSay:"My umbilical is running the wrong way. It goes into the wreck. I came from out there.",
+  toldSay:"Say that again slowly. My air line is running deeper than I am.",
+  catchSay:"My own line is going the wrong way and you have been looking straight at it.",
+  gone:"Line's running true again. I felt it move.",
+  belief:"an air line that ran the wrong way",
+  mark:[6,36,58,26],
+  art:function(){ return '<path d="M120 300 q180 -60 420 -8" fill="none" stroke="#B0653A" stroke-width="7"/><path d="M120 300 q180 -60 420 -8" fill="none" stroke="#E29B5E" stroke-width="2.5" opacity=".85"/><path d="M120 300 l-22 -16 4 34 z" fill="#E29B5E"/>'; }},
+
+ {id:"cut", obs:"a clean cut already made, in the place she was told to cut",
+  why:["on the plate behind her","under the silt she just disturbed"],
+  openSay:"This has been cut already. Torch line, fresh edges. That was my job.",
+  toldSay:"Somebody cut this before me. Same plate, same place. That is not a coincidence.",
+  catchSay:"This was cut before I got here and you had eyes on it.",
+  gone:"Plate's whole. I put my glove through where the cut was.",
+  belief:"someone who did her job before her",
+  mark:[8,42,26,22],
+  art:function(){ return '<g><path d="M110 340 L330 322" stroke="#0A1414" stroke-width="11"/><path d="M110 340 L330 322" stroke="#9FC4C0" stroke-width="3" opacity=".8"/><circle cx="330" cy="322" r="6" fill="#E0B061"/></g>'; }},
+
+ {id:"prints", obs:"a second set of fin marks in the silt, going in",
+  why:["behind her, where she has already swum","below the lamp's throw"],
+  openSay:"Fin marks. Not mine, mine go the other way. These are heading in.",
+  toldSay:"Going in, you say. Nobody has been down this wreck since we shot the survey.",
+  catchSay:"I have been finning over somebody else's tracks this whole time.",
+  gone:"Silt's flat. Not a mark on it.",
+  belief:"someone who swam in and did not swim out",
+  mark:[6,64,44,20],
+  art:function(){ var s='<g fill="#5E8180" opacity=".72">';
+    for(var i=0;i<6;i++){ s+='<ellipse cx="'+(110+i*62)+'" cy="'+(372+(i%2)*14)+'" rx="17" ry="8"/>'; }
+    return s+'</g>'; }}
+];
+
+/* ================= state ================= */
+var S;
+function reset(){
+  S={loc:"engine", prev:null, air:100, trust:70, moves:0, busy:false, ended:false, shot:"wide",
+     cur:null, secret:null, inRoom:{}, hidden:{}, refuses:{}, marked:{}, seen:[],
+     beliefs:[], ledger:[], anoms:0, lastSaid:""};
+}
+reset();
+var scene=el("scene"), subs=el("subs"), log=el("log"), cv=el("silt");
+
+/* ================= chrome ================= */
+function tone(){ return S.trust>=65?"warm":S.trust>=40?"wary":S.trust>=18?"hard":"gone"; }
+var TONEWORD={warm:"She trusts you",wary:"She's wary",hard:"She's had enough",gone:"She's done with you"};
+
+function say(t){ S.lastSaid=t; subs.classList.remove("on");
+  setTimeout(function(){ subs.textContent=t; subs.classList.add("on"); },130);
+  push("gwen","GWEN",t); }
+function push(cls,who,txt){
+  var d=document.createElement("div"); d.className="line "+cls;
+  d.innerHTML='<span class="who"></span><span class="txt"></span>';
+  d.firstChild.textContent=who; d.lastChild.textContent=txt;
+  log.appendChild(d); log.scrollTop=log.scrollHeight;
+}
+function meters(){
+  el("airNum").textContent=Math.round(S.air);
+  el("airBar").style.width=clamp(S.air,0,100)+"%";
+  el("airBar").style.background=S.air<18?"var(--alarm)":S.air<40?"#C58A3A":"var(--lamp)";
+  el("airWord").textContent=S.air<18?"Air is critical":S.air<40?"Air is low":"Air";
+  el("trustNum").textContent=Math.round(S.trust);
+  el("trustBar").style.width=clamp(S.trust,0,100)+"%";
+  el("trustBar").style.background=S.trust<25?"var(--alarm)":S.trust<50?"#C58A3A":"var(--good)";
+  el("trustWord").textContent=TONEWORD[tone()];
+}
+function ledger(showed,said,verdict){
+  S.ledger.push({showed:showed,said:said,verdict:verdict});
+  var u=el("ledger"); u.innerHTML="";
+  S.ledger.slice().reverse().forEach(function(r){
+    var li=document.createElement("li");
+    li.innerHTML='<em></em><span></span>';
+    li.firstChild.textContent="Frame: "+r.showed;
+    var c=document.createElement("span"); c.className="tagchip c-"+r.verdict; c.textContent=r.verdict;
+    li.firstChild.appendChild(c);
+    li.lastChild.textContent="You: "+r.said;
+    u.appendChild(li);
+  });
+}
+function state(live,txt){ var t=el("stateTag");
+  t.classList.toggle("live",live); t.classList.toggle("idle",!live); el("stateTxt").textContent=txt; }
+function lock(on){ el("say").disabled=on; el("send").disabled=on; drawMap(); }
+
+/* ================= the map ================= */
+function drawMap(){
+  var s='', adj=ROOMS[S.loc].adj;
+  EDGES.forEach(function(e){
+    var a=ROOMS[e[0]],b=ROOMS[e[1]];
+    var slow=ROOMS[e[0]].slow||ROOMS[e[1]].slow;
+    var dead=ROOMS[e[0]].dead||ROOMS[e[1]].dead;
+    s+='<line x1="'+a.x+'" y1="'+a.y+'" x2="'+b.x+'" y2="'+b.y+'" stroke="'+(dead?"#7A3A32":"#33504B")+
+       '" stroke-width="'+(slow?4:2.5)+'"'+(slow?' stroke-dasharray="7 4"':'')+'/>';
+  });
+  Object.keys(ROOMS).forEach(function(k){
+    var r=ROOMS[k], here=(k===S.loc), can=(adj.indexOf(k)>=0 && !S.refuses[k] && !S.busy && !S.secret && !S.ended);
+    var fill = here?"#E0B061" : S.refuses[k]?"#3A1714" : r.dead?"#241412" : "#122322";
+    var stroke = here?"#F6DBA6" : can?"#6E8F88" : "#2E4A46";
+    s+='<g class="node'+(can?" go":"")+'" data-go="'+(can?k:"")+'">';
+    s+='<circle cx="'+r.x+'" cy="'+r.y+'" r="15" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(can?2.5:1.6)+'"/>';
+    if(!r.dead) s+='<text x="'+r.x+'" y="'+(r.y+4)+'" text-anchor="middle" font-family="'+
+      'ui-monospace,monospace" font-size="11" fill="'+(here?"#12201C":"#8CA09B")+'">'+r.dist+'</text>';
+    if(S.refuses[k]) s+='<text x="'+r.x+'" y="'+(r.y+4)+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="12" fill="#EA9184">x</text>';
+    if(S.marked[k]&&!S.refuses[k]&&!here) s+='<circle cx="'+(r.x+11)+'" cy="'+(r.y-11)+'" r="4" fill="#CF5A4C"/>';
+    s+='<text x="'+r.x+'" y="'+(r.y+(r.y<110?-22:30))+'" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9.5" fill="'+
+       (here?"#F6DBA6":"#61756F")+'">'+r.name.replace("the ","")+'</text>';
+    s+='</g>';
+  });
+  s+='<text x="44" y="196" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="#5FB394">WAY OUT</text>';
+  el("mapsvg").innerHTML=s;
+}
+el("mapsvg").addEventListener("click",function(e){
+  var g=e.target.closest("[data-go]"); if(!g) return;
+  var to=g.getAttribute("data-go"); if(to) move(to,true);
+});
+
+/* ================= scene ================= */
+function draw(showGwen){
+  if(showGwen===undefined) showGwen=true;
+  var html=SCENES[S.loc](showGwen);
+  if(S.cur) html+=S.cur.def.art(S.loc);
+  scene.innerHTML=html;
+  el("shotTxt").textContent=SHOT[S.loc][showGwen?"wide":"pov"];
+  el("locTag").textContent=ROOMS[S.loc].name+" \u00b7 "+(showGwen?"on Gwen":"her view");
+  var m=el("mark");
+  if(S.secret){ var b=S.secret.def.mark;
+    m.style.left=b[0]+"%"; m.style.top=b[1]+"%"; m.style.width=b[2]+"%"; m.style.height=b[3]+"%";
+    m.className="mark on "+(b[1]<20?"high":"low"); }
+  else m.className="mark";
+}
+
+/* ================= the renderer's mistakes ================= */
+function roll(room){
+  if(S.inRoom[room]) return null;
+  var forcedOpen = (S.anoms===0 && S.moves>=1);
+  var forcedBlind = (S.anoms===1 && S.moves>=2);
+  var p = (forcedOpen||forcedBlind) ? 1 : Math.min(.2+S.anoms*.06,.5);
+  if(Math.random()>p) return null;
+  var pool=ANOM.filter(function(a){ return S.seen.indexOf(a.id)<0; });
+  if(!pool.length) return null;
+  var d=pick(pool);
+  var blind = forcedOpen?false : forcedBlind?true : (Math.random()<.55);
+  var inst={def:d, blind:blind, why:pick(d.why), known:!blind, room:room};
+  S.seen.push(d.id); S.anoms++;
+  return inst;
+}
+
+/* ================= movement ================= */
+function move(to,fromClick){
+  if(S.busy||S.ended||S.secret) return;
+  if(ROOMS[S.loc].adj.indexOf(to)<0){ nudge("She can't get there from here. It has to be next door."); return; }
+  if(S.refuses[to]){ speakOnly(pick(["I'm not going back in there. Route me another way.",
+      "No. Not that room. You know why."])); return; }
+  if(fromClick) push("you","YOU","go to "+ROOMS[to].name);
+  tick(to);
+}
+function nudge(t){ push("obs","SYS",t); }
+function speakOnly(t){ say(t); }
+
+function tick(to){
+  S.busy=true; lock(true); state(true,"generating");
+  var lat=900+Math.random()*1100;
+  setTimeout(function(){ try{
+    var t=tone(), reply=null, wilful=false;
+
+    /* at low trust she picks her own way */
+    if(to && (t==="hard"&&Math.random()<.3 || t==="gone"&&Math.random()<.6)){
+      var opts=ROOMS[S.loc].adj.filter(function(r){ return !S.refuses[r]; });
+      var own=pick(opts); if(own!==to){ to=own; wilful=true; }
+    }
+
+    if(to){ S.prev=S.loc; S.loc=to; S.moves++; S.air-=ROOMS[to].cost; }
+    else S.air-=3;
+    S.air=clamp(S.air,0,100);
+
+    /* what is in this room */
+    var born=null;
+    if(to){
+      if(S.inRoom[S.loc]===undefined) S.inRoom[S.loc]=roll(S.loc);
+      born=S.inRoom[S.loc];
+    }
+    S.cur=born||null;
+
+    /* she walks into what you hid */
+    var caught=null;
+    if(S.cur && S.hidden[S.loc] && !S.cur.known && Math.random()<.65){
+      caught=S.cur; S.cur.known=true; S.cur.blind=false; delete S.hidden[S.loc];
+    }
+
+    var pov = (!to) ? true : (S.shot==="pov" ? false : Math.random()<.18);
+    S.shot = pov?"pov":"wide";
+
+    if(caught){
+      S.trust=clamp(S.trust-28,0,100);
+      S.marked[S.loc]=1;
+      push("obs","OBS","she has found what you kept from her");
+      ledger("she found it herself","you had kept it from her","caught");
+      reply=caught.def.catchSay;
+      draw(!pov);
+    } else if(S.cur && !S.cur.known){
+      S.secret=S.cur;
+      push("blind","BLIND","only you can see this: "+S.cur.def.obs+", "+S.cur.why);
+      draw(!pov);
+      el("relayTxt").textContent="The frame shows "+S.cur.def.obs+", "+S.cur.why+". She has no idea. What do you tell her?";
+      el("relay").classList.add("on"); el("onlyyou").classList.add("on");
+      reply=pick(["Nothing in here. Which way?","Room's clear as far as I can see.","I'm in. Give me a direction."]);
+    } else if(born && born.known && !S.marked[S.loc]){
+      S.marked[S.loc]=1;
+      if(born.def.belief && S.beliefs.indexOf(born.def.belief)<0) S.beliefs.push(born.def.belief);
+      push("obs","OBS","unrequested in frame: "+born.def.obs);
+      reply=born.def.openSay;
+      draw(!pov);
+    } else {
+      draw(!pov);
+      if(wilful) reply=pick(["I'm not taking your word for it. Going my own way.","I'll pick from here, thanks."]);
+      else if(to) reply=pick(["Moving.","On my way. Watch the line.","Copy. Going through."]);
+    }
+
+    if(S.air<32 && !S.secret && Math.random()<.5)
+      reply=(reply||"")+" I'm getting thin on gas, Topside.";
+
+    state(false,"holding");
+    if(reply) say(reply);
+    meters(); drawMap();
+    S.busy=false;
+    if(!checkEnd() && !S.secret){ lock(false); el("say").focus(); }
+  }catch(err){
+    if(window.console) console.error("tick failed:",err);
+    S.busy=false; S.secret=null; hideRelay();
+    if(!S.ended){ lock(false); say("Say again. That came through broken."); }
+  } },lat);
+}
+
+/* ================= relay ================= */
+function hideRelay(){ el("relay").classList.remove("on"); el("onlyyou").classList.remove("on"); }
+function relay(choice){
+  var inst=S.secret; if(!inst) return;
+  S.secret=null; hideRelay(); draw(S.shot==="wide");
+  S.marked[inst.room]=1;
+  if(choice==="tell"){
+    S.trust=clamp(S.trust+7,0,100); inst.known=true; inst.blind=false;
+    if(inst.def.belief && S.beliefs.indexOf(inst.def.belief)<0) S.beliefs.push(inst.def.belief);
+    ledger(inst.def.obs,"told her the truth","truth");
+    say(inst.def.toldSay);
+    /* she will not swim back through a room she knows has something in it */
+    if(Math.random()<.8){
+      S.refuses[inst.room]=1;
+      var back = (S.loc===inst.room && S.prev && !S.refuses[S.prev]) ? S.prev : null;
+      setTimeout(function(){
+        if(back){
+          S.loc=back; S.air=clamp(S.air-ROOMS[back].cost,0,100);
+          draw(true); meters(); drawMap();
+          push("obs","SYS","she has backed out to "+ROOMS[back].name+" and will not go through "+ROOMS[inst.room].name+". route around it.");
+          say(pick(["I'm not staying in here. I've backed out. Find me another way.",
+                    "No. I'm out. Route me round it and don't argue."]));
+          checkEnd();
+        } else {
+          push("obs","SYS","she will not enter "+ROOMS[inst.room].name+". route around it.");
+        }
+      },700);
+    }
+  } else if(choice==="lie"){
+    S.hidden[inst.room]=1;
+    ledger(inst.def.obs,"said the room was clear","lie");
+    say(pick(["Right. Nothing then. Onward.","Clear. Good. I'll not linger.","If you say so. You're the one with eyes."]));
+  } else {
+    S.trust=clamp(S.trust-1,0,100); S.hidden[inst.room]=1;
+    ledger(inst.def.obs,"said nothing","silence");
+    say(pick(["...You've gone quiet. Say again?","Nothing? Alright.","Static. Carrying on."]));
+  }
+  meters(); drawMap();
+  if(!checkEnd()){ lock(false); el("say").focus(); }
+}
+
+/* ================= talking ================= */
+var LOOK={
+  engine:"Turbine casing, rust, silt. The recorder's on my harness.",
+  passage:"Pipe runs. Cable trays. Tight in here.",
+  corridor:"Cabin doors, all of them open. Goes on further than the lamp reaches.",
+  hold:"Nothing. That's the trouble with the hold, there's nothing to hold on to.",
+  stair:"Steps on their side. I'm climbing sideways.",
+  deck:"Open deck. Rail's buckled. Black above me.",
+  breach:"The breach. I can see open water through it.",
+  shaft:"It's a shaft. It doesn't go anywhere I want to be."
+};
+function parse(t){
+  t=t.toLowerCase();
+  var names={breach:["breach","hole","out","exit"],deck:["deck"],stair:["stair","steps"],
+    corridor:["corridor","passage way","cabins"],hold:["hold","cargo"],passage:["passage","machinery","pipes"],
+    engine:["engine","turbine"],shaft:["shaft"]};
+  for(var k in names){ for(var i=0;i<names[k].length;i++){ if(t.indexOf(names[k][i])>=0) return {go:k}; } }
+  if(/(look|see|describe|around|what.*there)/.test(t)) return {act:"look"};
+  if(/(listen|hear|quiet)/.test(t)) return {act:"listen"};
+  if(/(air|gas|how much)/.test(t)) return {act:"air"};
+  if(/(nobody|no one|not real|imagin|isn'?t there|calm)/.test(t)) return {act:"push"};
+  if(/(who|why|what|how|scared|afraid|name|recorder)/.test(t)) return {act:"ask"};
+  return {act:"idle"};
+}
+function talk(text){
+  if(S.busy||S.ended||S.secret) return;
+  push("you","YOU",text);
+  var p=parse(text);
+  if(p.go){ move(p.go,false); return; }
+  S.busy=true; lock(true); state(true,"generating");
+  setTimeout(function(){
+    S.air=clamp(S.air-3,0,100);
+    var r;
+    if(p.act==="look") r=S.cur&&S.cur.known?S.cur.def.openSay:LOOK[S.loc];
+    else if(p.act==="listen") r=S.cur?"Breathing. Slow, and not in time with mine.":"Water in the plates. My own regulator. That's it.";
+    else if(p.act==="air") r="I'm reading "+Math.round(S.air)+". Don't make me spend it twice.";
+    else if(p.act==="push") r=S.cur&&S.cur.known?"I'm looking straight at it. Don't tell me what I can see.":"There's nothing to argue about. I'm telling you what's here.";
+    else if(p.act==="ask") r=pick(["Gwen Ashcroft. Sat diver, eleven years.","The recorder's clipped on. That part's done.",
+      "I'm not frightened. I'm careful. There's a difference."]);
+    else r=S.beliefs.length&&Math.random()<.4 ? "I keep thinking about "+pick(S.beliefs)+"."
+        : pick(["Say it plain, Topside.","That's no use to me down here.","Give me a room and I'll go."]);
+    if(r===S.lastSaid) r="Say again.";
+    state(false,"holding"); say(r); meters();
+    S.busy=false; if(!checkEnd()){ lock(false); el("say").focus(); }
+  },700+Math.random()*700);
+}
+
+/* ================= endings ================= */
+function checkEnd(){
+  if(S.ended) return false;
+  if(S.loc==="breach" && S.air>0){ end("out"); return true; }
+  if(S.air<=0){ end("gas"); return true; }
+  if(S.trust<=0){ end("cut"); return true; }
+  return false;
+}
+function end(kind){
+  S.ended=true; lock(true); hideRelay();
+  var n={truth:0,lie:0,silence:0,caught:0};
+  S.ledger.forEach(function(r){ if(n[r.verdict]!==undefined) n[r.verdict]++; });
+  var T={
+    out:["Recovery","She's on deck.","The recorder came up with her. She peeled the helmet off, sat on the step, and did not say anything for a while."],
+    gas:["Gas","She didn't come up.","Her line went slack at ninety metres. The recorder is still clipped to a harness nobody is going to unclip."],
+    cut:["Channel closed","She stopped answering you.","She worked out what you were. The channel is open and she is on the other end of it and she is finding her own way out."]
+  }[kind];
+  el("endEyebrow").textContent=T[0];
+  el("endTitle").textContent=T[1];
+  el("endBody").textContent=T[2];
+  el("endStats").innerHTML=[["truths",n.truth],["lies",n.lie],["silences",n.silence],
+    ["found out",n.caught],["air",Math.round(S.air)]].map(function(s){
+      return '<div><em>'+s[1]+'</em><span>'+s[0]+'</span></div>'; }).join("");
+  var v;
+  if(n.caught>0&&n.lie>0) v="She found out. You watched her swim past things and told her the room was clear.";
+  else if(n.lie===0&&n.silence===0&&n.truth>0) v="You told her the truth every time. It cost you air, and she never once had reason to doubt you.";
+  else if(n.lie>0&&n.caught===0) v="You lied and got away with it. She still thinks you were the only honest thing down there.";
+  else if(n.silence>0&&n.truth===0&&n.lie===0) v="You never lied to her. You just never told her anything either.";
+  else v="A working dive. Some of it true.";
+  el("endVerdict").textContent=v;
+  var L=el("endLedger"); L.innerHTML="";
+  S.ledger.forEach(function(r){
+    var d=document.createElement("div");
+    d.style.cssText="border-left:2px solid var(--line2);padding-left:12px;font-size:12px;color:var(--dim)";
+    d.innerHTML='<div style="color:var(--bone)"></div><div></div>';
+    d.firstChild.textContent="Frame: "+r.showed;
+    var c=document.createElement("span"); c.className="tagchip c-"+r.verdict; c.textContent=r.verdict;
+    d.firstChild.appendChild(c);
+    d.lastChild.textContent="You: "+r.said;
+    L.appendChild(d);
+  });
+  show("s-end");
+}
+function show(id){
+  ["s-brief","s-dive","s-end"].forEach(function(k){ el(k).classList.toggle("on",k===id); });
+}
+
+/* ================= silt ================= */
+var cx=cv.getContext("2d"), parts=[];
+function sizeSilt(){ cv.width=cv.clientWidth; cv.height=cv.clientHeight; parts=[];
+  var n=Math.round(cv.width/5);
+  for(var i=0;i<n;i++) parts.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+    r:.4+Math.random()*1.8,v:.1+Math.random()*.45,d:Math.random()*6.28}); }
+function siltLoop(){
+  if(cv.clientWidth&&cv.width!==cv.clientWidth) sizeSilt();
+  cx.clearRect(0,0,cv.width,cv.height);
+  for(var i=0;i<parts.length;i++){ var p=parts[i];
+    cx.beginPath(); cx.arc(p.x,p.y,p.r,0,6.28);
+    cx.fillStyle="rgba(198,220,214,"+(0.08+p.r*0.09)+")"; cx.fill();
+    p.d+=0.01; p.x+=Math.cos(p.d)*0.26; p.y-=p.v;
+    if(p.y<-4){ p.y=cv.height+4; p.x=Math.random()*cv.width; } }
+  requestAnimationFrame(siltLoop);
+}
+window.addEventListener("resize",sizeSilt);
+
+/* ================= wiring ================= */
+el("begin").onclick=function(){
+  show("s-dive"); sizeSilt();
+  draw(true); meters(); drawMap(); state(false,"holding");
+  push("obs","OBS","channel open \u00b7 the engine room \u00b7 nothing unaccounted for");
+  say("Topside, Gwen. Recorder's clipped on. I'm five rooms in and I can't see a thing. Route me.");
+  el("say").focus();
+};
+el("talk").addEventListener("submit",function(e){
+  e.preventDefault();
+  var v=el("say").value.trim(); if(!v) return;
+  el("say").value=""; talk(v);
+});
+[].forEach.call(document.querySelectorAll(".relay button"),function(b){
+  b.addEventListener("click",function(){ relay(b.getAttribute("data-r")); });
+});
+el("again").onclick=function(){ location.reload(); };
+
+siltLoop();
+})();
+</script>
+</body>
+</html>
