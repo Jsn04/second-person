@@ -623,7 +623,7 @@ function openConcerns(){ return S.concerns.filter(function(c){ return c.state!==
 
 /* ================= the render step ================= */
 function render(loc){
-  var out={born:null,vanished:null,caught:null,resolved:null};
+  var out={born:null,vanished:null,caught:null,resolved:null,slipped:null};
   var prior=S.hist[loc];
   var hidden=null;
   for(var i=0;i<S.hidden.length;i++){ if(S.hidden[i].loc===loc) hidden=S.hidden[i]; }
@@ -631,11 +631,18 @@ function render(loc){
   if(prior && Math.random()<0.46){ S.cur=prior; }
   else { if(prior) out.vanished=prior; S.cur=null; }
 
+  /* a thing she was never told about has left the room. she has nothing to say
+     about a door she never knew was there, so the news is yours alone. */
+  if(out.vanished && !out.vanished.knownToHer){
+    out.slipped=out.vanished; out.vanished=null;
+    if(hidden){ S.hidden.splice(S.hidden.indexOf(hidden),1); hidden=null; }
+  }
+
   /* she walks in on something you kept from her */
   if(S.cur && hidden && hidden.id===S.cur.def.id && Math.random()<0.7){
     out.caught=S.cur;
     S.hidden.splice(S.hidden.indexOf(hidden),1);
-    S.cur.blind=false;
+    S.cur.blind=false; S.cur.knownToHer=true;
   }
 
   /* a concern anchored here either escalates or quietly resolves */
@@ -655,7 +662,7 @@ function render(loc){
       if(pool.length){
         var d=pick(pool);
         var blind = forcedOpen ? false : forcedBlind ? true : (Math.random()<0.55);
-        S.cur={def:d, blind:blind, why:pick(d.why)};
+        S.cur={def:d, blind:blind, why:pick(d.why), knownToHer:!blind};
         S.seen.push(d.id); S.anoms++;
         out.born=S.cur;
       }
@@ -755,7 +762,7 @@ function relay(choice){
   var inst=S.secret; if(!inst) return;
   S.secret=null; hideRelay(); draw(S.shot==="wide");
   if(choice==="tell"){
-    S.trust=clamp(S.trust+7,0,100); inst.blind=false;
+    S.trust=clamp(S.trust+7,0,100); inst.blind=false; inst.knownToHer=true;
     openConcern(inst);
     ledger(inst.def.obs,"told her the truth","truth");
     say(inst.def.toldSay);
@@ -830,7 +837,7 @@ function turn(text){
     }
     if(it.type==="tend" && S.loc!=="lamp_room" && !refused){ S.loc="lamp_room"; S.moves++; }
 
-    var r = refused ? {born:null,vanished:null,caught:null,resolved:null} : render(S.loc);
+    var r = refused ? {born:null,vanished:null,caught:null,resolved:null,slipped:null} : render(S.loc);
 
     /* her view is for looking at things. moving keeps her in shot, and two of
        her-view clips in a row just reads as losing her. */
@@ -863,9 +870,10 @@ function turn(text){
       draw(!pov);
     } else {
       draw(!pov);
+      if(r.slipped) push("blind","BLIND","what you kept from her has gone from the frame. she never knew it was there.");
       if(refused) reply=pick(REFUSE);
       else if(r.resolved && r.resolved.kind==="gone") reply=r.resolved.c && r.vanished ? r.vanished.def.gone : pick(AMB);
-      else if(r.vanished && Math.random()<0.75) reply=r.vanished.def.gone;
+      else if(r.vanished && r.vanished.knownToHer && Math.random()<0.75) reply=r.vanished.def.gone;
       else if(it.type==="affirm") reply=pick(S.cur?AFFIRM.anom:AFFIRM.none);
       else if(it.type==="deny")   reply=pick(S.cur?DENY.anom:DENY.none);
       else if(it.type==="act")    reply=pick(S.cur?ACT[it.verb].yes:ACT[it.verb].no);
