@@ -185,7 +185,7 @@ button:disabled{opacity:.35; cursor:default}
     <div class="grain"></div>
     <div class="vig"></div>
     <div class="pill l live" id="statePill"><span class="dot"></span><span id="stateTxt">generating live</span></div>
-    <div class="pill r" id="locPill">clip 1 &middot; lamp room &middot; wide</div>
+    <div class="pill r" id="locPill">clip 1 &middot; lamp room &middot; on Wren</div>
     <div class="onlyyou" id="onlyyou">only you can see this</div>
     <div class="subs"><p id="subs"></p></div>
 
@@ -193,6 +193,7 @@ button:disabled{opacity:.35; cursor:default}
       <h2>You are the voice. She can't see. You can.</h2>
       <p>Wren keeps this lighthouse. Her radio reaches one person, and it's you. Tell her where to go and what to look at, and the world renders it.</p>
       <p>It does not always render what you asked for. Sometimes she sees the difference. Sometimes <b>only you do</b>, and then you decide what she's told.</p>
+      <p>The camera is sometimes on her and sometimes looking through her eyes. The corner tells you which.</p>
       <p>She has a job. The lamp has to burn until morning, and it burns down whether she's tending it or not. Everything you tell her is written to the Ledger.</p>
       <button id="begin">Open the channel</button>
     </div>
@@ -554,7 +555,7 @@ function strip(lat){
   var b=1+Math.floor(Math.random()*3); el("mBuf").textContent=b+(b===1?" clip":" clips");
   el("mCon").textContent=(0.86+Math.random()*0.11).toFixed(2);
   el("mAno").textContent=String(S.anoms);
-  el("locPill").textContent="clip "+S.clip+" \u00b7 "+LOCNAME[S.loc]+" \u00b7 "+S.shot;
+  el("locPill").textContent="clip "+S.clip+" \u00b7 "+LOCNAME[S.loc]+" \u00b7 "+(S.shot==="pov"?"her view":"on Wren");
 }
 function state(on,txt){
   var p=el("statePill");
@@ -795,7 +796,13 @@ function turn(text){
 
     var r = refused ? {born:null,vanished:null,caught:null,resolved:null} : render(S.loc);
 
-    var pov = (it.type==="look") ? true : (Math.random()<0.36);
+    /* her view is for looking at things. moving keeps her in shot, and two of
+       her-view clips in a row just reads as losing her. */
+    var pov;
+    if(S.shot==="pov") pov=false;
+    else if(it.type==="look"||it.type==="act") pov=true;
+    else if(it.type==="move") pov=(Math.random()<0.12);
+    else pov=(Math.random()<0.2);
     S.shot = pov ? "pov" : "wide";
 
     var reply=null;
@@ -873,7 +880,7 @@ setInterval(function(){
   if(Date.now()-S.lastIdle<26000) return;
   S.lastIdle=Date.now(); S.clip++;
   S.light=clamp(S.light-2.2+(S.loc==="lamp_room"?9:0),0,100);
-  S.shot=Math.random()<0.55?"pov":"wide"; draw(S.shot==="wide");
+  S.shot=(S.shot!=="pov"&&Math.random()<0.25)?"pov":"wide"; draw(S.shot==="wide");
   strip(900+Math.random()*400); meters();
   var line;
   if(S.beliefs.length && Math.random()<0.45) line="I keep thinking about "+pick(S.beliefs)+".";
