@@ -468,7 +468,7 @@ var ANOM=[
 /* ================= state ================= */
 var S;
 function reset(){
-  S={tickAt:0, loc:"lamp_room", clip:1, shot:"wide", moves:0, busy:false, started:false, ended:false,
+  S={tickAt:0, lastSaid:"", loc:"lamp_room", clip:1, shot:"wide", moves:0, busy:false, started:false, ended:false,
      trust:70, light:100, cur:null, secret:null, hist:{}, seen:[], concerns:[], beliefs:[],
      ledger:[], hidden:[], anoms:0, lastIdle:0, tended:0};
 }
@@ -495,6 +495,7 @@ function draw(showWren){
   cv.style.opacity=(0.34+Math.random()*0.30).toFixed(2);
 }
 function say(t){
+  S.lastSaid=t;
   subs.classList.remove("on");
   setTimeout(function(){ subs.textContent=t; subs.classList.add("on"); },140);
   push("wren","WREN",t);
@@ -882,10 +883,14 @@ setInterval(function(){
   S.light=clamp(S.light-2.2+(S.loc==="lamp_room"?9:0),0,100);
   S.shot=(S.shot!=="pov"&&Math.random()<0.25)?"pov":"wide"; draw(S.shot==="wide");
   strip(900+Math.random()*400); meters();
-  var line;
-  if(S.beliefs.length && Math.random()<0.45) line="I keep thinking about "+pick(S.beliefs)+".";
-  else if(S.cur) line=pick(["It hasn't moved. I've been counting.","Still there. I'm not going to keep saying it."]);
-  else line=pick(AMB);
+  var line, tries=0;
+  do{
+    if(S.beliefs.length && Math.random()<0.45) line="I keep thinking about "+pick(S.beliefs)+".";
+    else if(S.cur) line=pick(["It hasn't moved. I've been counting.","Still there. I'm not going to keep saying it."]);
+    else line=pick(AMB);
+    tries++;
+  } while(line===S.lastSaid && tries<6);
+  if(line===S.lastSaid) line=pick(AMB.filter(function(a){ return a!==S.lastSaid; }));
   say(line); checkEnd();
 },4000);
 
@@ -907,7 +912,8 @@ function rain(){ cx.clearRect(0,0,cv.width,cv.height);
 window.addEventListener("resize",sizeRain);
 
 /* ================= wiring ================= */
-["Go down to the radio room","What can you see?","Check the door","Tend the lamp","There's nobody there"]
+["Go down to the radio room","Check the door","Go to the stairwell","Go up to the lamp room",
+ "What can you see?","Tend the lamp","There's nobody there"]
 .forEach(function(c){
   var b=document.createElement("button"); b.type="button"; b.className="chip"; b.textContent=c;
   b.onclick=function(){ if(S.busy||!S.started||S.secret||S.ended) return;
