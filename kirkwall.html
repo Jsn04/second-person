@@ -118,6 +118,21 @@ button:disabled{opacity:.35;cursor:default}
   text-transform:uppercase;color:var(--alarmhi);font-weight:400;margin-bottom:2px}
 .relay button{border-color:var(--alarm);height:40px}
 .relay button:hover{background:rgba(207,90,76,.22);border-color:var(--alarmhi)}
+.hintbar{display:none;border:1px solid var(--lamp);border-radius:3px;background:rgba(224,176,97,.09);
+  padding:13px 15px;gap:12px;align-items:center;flex-wrap:wrap}
+.hintbar.on{display:flex}
+.hintbar p{margin:0;flex:1 1 300px;font-family:var(--voice);font-size:16px;color:#F7EEDC}
+.hintbar p b{display:block;font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--lamphi);font-weight:400;margin-bottom:2px}
+.hintbar button{border-color:var(--lamp);height:40px}
+.hintbar button:hover:not(:disabled){background:rgba(224,176,97,.2);border-color:var(--lamphi)}
+.pips{display:flex;gap:5px}
+.pip{width:10px;height:10px;border-radius:50%;background:var(--lamp)}
+.pip.spent{background:transparent;box-shadow:inset 0 0 0 2px var(--faint);opacity:.5}
+.think{position:absolute;left:12px;bottom:88px;max-width:54%;z-index:2;font-family:var(--voice);
+  font-size:14.5px;line-height:1.5;font-style:italic;color:rgba(223,233,229,.66);
+  opacity:0;transition:opacity .4s}
+.think.on{opacity:1}
 
 .talk{display:flex;gap:9px}
 .log{background:var(--panel);border:1px solid var(--line);border-radius:3px;padding:10px 12px;
@@ -182,6 +197,7 @@ input[type=text]:focus{outline:none;border-color:var(--lamp);box-shadow:0 0 0 1p
       <div class="shotline"><b>shot sent to renderer</b><span id="shotTxt">.</span></div>
       <div class="onlyyou" id="onlyyou">only you can see this</div>
       <div class="mark low" id="mark"><b>SHE CANNOT SEE THIS</b></div>
+      <div class="think" id="think"></div>
       <div class="subs"><p id="subs"></p></div>
     </div>
 
@@ -195,6 +211,7 @@ input[type=text]:focus{outline:none;border-color:var(--lamp);box-shadow:0 0 0 1p
         <div class="bar"><u id="airBar" style="width:100%;background:var(--lamp)"></u></div>
         <div class="meter" style="margin-top:10px"><em id="trustWord">She trusts you</em><i id="trustNum">70</i></div>
         <div class="bar"><u id="trustBar" style="width:70%;background:var(--good)"></u></div>
+        <div class="meter" style="margin-top:11px"><em>Hints left</em><span class="pips" id="pips"></span></div>
       </div>
       <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
         <h3>The ledger</h3>
@@ -203,6 +220,13 @@ input[type=text]:focus{outline:none;border-color:var(--lamp);box-shadow:0 0 0 1p
     </div>
 
     <div class="bottom">
+      <div class="hintbar" id="hintbar">
+        <p><b>she is about to go the wrong way</b><span id="hintTxt">.</span></p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="spendHint">Spend a hint</button>
+          <button id="letGo">Let her go</button>
+        </div>
+      </div>
       <div class="relay" id="relay">
         <p><b>she has not seen it</b><span id="relayTxt">.</span></p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -214,7 +238,7 @@ input[type=text]:focus{outline:none;border-color:var(--lamp);box-shadow:0 0 0 1p
       <div class="log" id="log" role="log" aria-live="polite"></div>
       <form class="talk" id="talk" autocomplete="off">
         <label class="sr" for="say">Speak to Gwen</label>
-        <input type="text" id="say" placeholder="go to the corridor &middot; what can you see &middot; listen" maxlength="120">
+        <input type="text" id="say" placeholder="what can you see &middot; listen &middot; how much air" maxlength="120">
         <button type="submit" id="send">Send</button>
       </form>
     </div>
@@ -424,7 +448,9 @@ var S;
 function reset(){
   S={loc:"engine", prev:null, air:100, trust:70, moves:0, busy:false, ended:false, shot:"wide",
      cur:null, secret:null, inRoom:{}, hidden:{}, refuses:{}, marked:{}, seen:[],
-     beliefs:[], ledger:[], anoms:0, lastSaid:""};
+     beliefs:[], ledger:[], anoms:0, lastSaid:"",
+     /* she read the survey before the dive, and some of it is wrong */
+     hints:3, wrong:{shaft:1}, been:{engine:1}, pending:null, timer:null};
 }
 reset();
 var scene=el("scene"), subs=el("subs"), log=el("log"), cv=el("silt");
@@ -480,10 +506,10 @@ function drawMap(){
        '" stroke-width="'+(slow?4:2.5)+'"'+(slow?' stroke-dasharray="7 4"':'')+'/>';
   });
   Object.keys(ROOMS).forEach(function(k){
-    var r=ROOMS[k], here=(k===S.loc), can=(adj.indexOf(k)>=0 && !S.refuses[k] && !S.busy && !S.secret && !S.ended);
+    var r=ROOMS[k], here=(k===S.loc), can=(adj.indexOf(k)>=0 && !S.refuses[k]);
     var fill = here?"#E0B061" : S.refuses[k]?"#3A1714" : r.dead?"#241412" : "#122322";
     var stroke = here?"#F6DBA6" : can?"#6E8F88" : "#2E4A46";
-    s+='<g class="node'+(can?" go":"")+'" data-go="'+(can?k:"")+'">';
+    s+='<g class="node">';
     s+='<circle cx="'+r.x+'" cy="'+r.y+'" r="15" fill="'+fill+'" stroke="'+stroke+'" stroke-width="'+(can?2.5:1.6)+'"/>';
     if(!r.dead) s+='<text x="'+r.x+'" y="'+(r.y+4)+'" text-anchor="middle" font-family="'+
       'ui-monospace,monospace" font-size="11" fill="'+(here?"#12201C":"#8CA09B")+'">'+r.dist+'</text>';
@@ -496,10 +522,7 @@ function drawMap(){
   s+='<text x="44" y="196" text-anchor="middle" font-family="ui-monospace,monospace" font-size="9" fill="#5FB394">WAY OUT</text>';
   el("mapsvg").innerHTML=s;
 }
-el("mapsvg").addEventListener("click",function(e){
-  var g=e.target.closest("[data-go]"); if(!g) return;
-  var to=g.getAttribute("data-go"); if(to) move(to,true);
-});
+/* she picks her own way. the map is your readout, not your joystick. */
 
 /* ================= scene ================= */
 function draw(showGwen){
@@ -532,17 +555,73 @@ function roll(room){
   return inst;
 }
 
-/* ================= movement ================= */
-function move(to,fromClick){
-  if(S.busy||S.ended||S.secret) return;
-  if(ROOMS[S.loc].adj.indexOf(to)<0){
-    say("Not from here. It's "+adjList()+", nothing else."); return; }
-  if(S.refuses[to]){ speakOnly(pick(["I'm not going back in there. Route me another way.",
-      "No. Not that room. You know why."])); return; }
-  if(fromClick) push("you","YOU","go to "+ROOMS[to].name);
-  tick(to);
+/* ================= she works on her own ================= */
+function schedule(){
+  clearTimeout(S.timer);
+  if(S.busy||S.ended||S.secret||S.pending) return;
+  S.timer=setTimeout(step, 3600);
 }
+function step(){
+  if(S.busy||S.ended||S.secret||S.pending) return;
+  if(S.loc==="breach"){ checkEnd(); return; }
+  var to=proposeMove();
+  if(!to){ say("I'm boxed in. You've refused me every way out of here."); return; }
+  think(REASON[to]||"Working it out.");
+  if(isWrong(to)) askForHint(to); else tick(to);
+}
+function move(to){ if(!S.busy&&!S.ended&&!S.secret&&!S.pending) tick(to); }
 function nudge(t){ push("obs","SYS",t); }
+function think(t){ var e=el("think"); e.classList.remove("on");
+  setTimeout(function(){ e.textContent=t; e.classList.add("on"); },120); }
+function pips(){
+  var s=""; for(var i=0;i<3;i++) s+='<span class="pip'+(i<S.hints?"":" spent")+'"></span>';
+  el("pips").innerHTML=s;
+}
+
+/* what she BELIEVES the distance home is. the survey she memorised is
+   eleven weeks out of date, and the renderer can add doors to it. */
+function believedDist(k){ return S.wrong[k] ? 1 : ROOMS[k].dist; }
+function trueDist(k){ return ROOMS[k].dist; }
+
+function proposeMove(){
+  var opts=ROOMS[S.loc].adj.filter(function(r){ return !S.refuses[r]; });
+  if(!opts.length) return null;
+  /* no immediate backtracking. a diver does not swim in circles, and without
+     this a stale belief about the room behind her becomes an infinite loop. */
+  var fwd=opts.filter(function(r){ return r!==S.prev; });
+  if(fwd.length) opts=fwd;
+  opts.sort(function(a,b){ return believedDist(a)-believedDist(b); });
+  return opts[0];
+}
+function isWrong(to){
+  if(ROOMS[to].dead) return true;
+  if(trueDist(to) >= trueDist(S.loc)) return true;
+  /* a room that gets her no closer per breath than a cheaper one is a wrong turn too */
+  var alt=ROOMS[S.loc].adj.filter(function(r){
+    return !S.refuses[r] && !ROOMS[r].dead && trueDist(r)<=trueDist(to) && ROOMS[r].cost<ROOMS[to].cost-6; });
+  return alt.length>0;
+}
+/* her memory of the survey keeps slipping. this is what makes the hints matter. */
+function driftMemory(){
+  if(Math.random()>0.5) return;
+  /* she misremembers a room she has not been in yet, somewhere no nearer the
+     breach than she is. never the room behind her: that is how loops start. */
+  var cand=Object.keys(ROOMS).filter(function(k){
+    return !S.wrong[k] && !S.been[k] && k!==S.loc && k!==S.prev
+        && trueDist(k)>=trueDist(S.loc);
+  });
+  if(cand.length) S.wrong[pick(cand)]=1;
+}
+var REASON={
+  shaft:"Survey had a vent shaft running up from here. That's my way out.",
+  hold:"Straight across the hold. Long swim, but it's a straight line.",
+  corridor:"Corridor runs forward. Should come out at the stair.",
+  stair:"Stair takes me up a deck. That's the way.",
+  deck:"Deck now. I'm nearly out.",
+  breach:"That's the breach. I can see water.",
+  passage:"Back along the machinery passage.",
+  engine:"Back to the turbine. I know this room."
+};
 function adjList(){
   var a=ROOMS[S.loc].adj.filter(function(r){ return !S.refuses[r]; }).map(function(r){ return ROOMS[r].name; });
   if(!a.length) return "nowhere she is willing to go";
@@ -563,7 +642,7 @@ function tick(to){
       var own=pick(opts); if(own!==to){ to=own; wilful=true; }
     }
 
-    if(to){ S.prev=S.loc; S.loc=to; S.moves++; S.air-=ROOMS[to].cost; }
+    if(to){ S.prev=S.loc; S.loc=to; S.been[to]=1; S.moves++; S.air-=ROOMS[to].cost; }
     else S.air-=3;
     S.air=clamp(S.air,0,100);
 
@@ -617,12 +696,75 @@ function tick(to){
     if(reply) say(reply);
     meters(); drawMap();
     S.busy=false;
-    if(!checkEnd() && !S.secret){ lock(false); el("say").focus(); }
+    if(to) driftMemory();
+    if(!checkEnd() && !S.secret){ lock(false); schedule(); }
   }catch(err){
     if(window.console) console.error("tick failed:",err);
     S.busy=false; S.secret=null; hideRelay();
     if(!S.ended){ lock(false); say("Say again. That came through broken."); }
   } },lat);
+}
+
+/* ================= hints ================= */
+function askForHint(to){
+  S.pending=to;
+  var why = ROOMS[to].dead ? "It's a dead end."
+          : trueDist(to) >= trueDist(S.loc) ? "It takes her further from the breach."
+          : "It's the long way round and it will cost her.";
+  el("hintTxt").textContent="She's heading for "+ROOMS[to].name+". "+why+
+    " You have "+S.hints+" hint"+(S.hints===1?"":"s")+" left.";
+  el("spendHint").disabled = S.hints<=0;
+  el("hintbar").classList.add("on");
+  lock(true);
+}
+function clearHint(){ el("hintbar").classList.remove("on"); S.pending=null; }
+
+function spendHint(){
+  var wrongTo=S.pending; if(!wrongTo) return;
+  clearHint(); S.hints--; pips();
+  var opts=ROOMS[S.loc].adj.filter(function(r){ return !S.refuses[r] && !isWrong(r); });
+  var right=opts.sort(function(a,b){ return trueDist(a)-trueDist(b); })[0];
+
+  /* the only way home is a room she has refused. spend the hint talking her
+     back into it. telling her the truth is what closed this door. */
+  if(!right){
+    var shut=ROOMS[S.loc].adj.filter(function(r){ return S.refuses[r]; })
+             .sort(function(a,b){ return trueDist(a)-trueDist(b); })[0];
+    if(shut && trueDist(shut)<trueDist(S.loc)){
+      delete S.refuses[shut]; delete S.wrong[wrongTo];
+      push("you","YOU","it's the only way out. you have to go through it.");
+      push("obs","SYS","she will go back through "+ROOMS[shut].name+".");
+      say(pick(["...You're sure. Then I'm going through and I'm not looking at it.",
+                "Right. Eyes front, then. Don't talk to me while I do this."]));
+      tick(shut); return;
+    }
+  }
+  push("you","YOU","not that way. "+(right?ROOMS[right].name:"stay put"));
+  /* a hint is only worth what she thinks you are worth */
+  if(S.trust<25 && Math.random()<0.6){
+    push("obs","SYS","she did not take the hint. it is spent anyway.");
+    say(pick(["I'm looking at it. You're looking at a drawing.",
+              "No. I've been down here eleven days and you've been a voice."]));
+    delete S.wrong[wrongTo];
+    tick(wrongTo); return;
+  }
+  delete S.wrong[wrongTo];
+  if(right){
+    say(pick(["...Right. Your map, my legs. Going your way.",
+              "Copy. I'll take your word for it."]));
+    tick(right);
+  } else {
+    S.hints++; pips();
+    push("obs","SYS","there is no better way from here. the hint is not spent.");
+    say("There isn't a better way out of this room. You know that as well as I do.");
+    lock(false); schedule();
+  }
+}
+function letHerGo(){
+  var to=S.pending; if(!to) return;
+  clearHint();
+  push("obs","SYS","you said nothing. she is taking it.");
+  tick(to);
 }
 
 /* ================= relay ================= */
@@ -653,6 +795,11 @@ function relay(choice){
         }
       },700);
     }
+    if(/door|hatch|opening|cut/.test(inst.def.obs)){
+      var far=Object.keys(ROOMS).filter(function(k){ return trueDist(k)>trueDist(S.loc); });
+      if(far.length){ S.wrong[pick(far)]=1;
+        setTimeout(function(){ think("That hatch isn't on my survey. It has to be a short cut."); },900); }
+    }
   } else if(choice==="lie"){
     S.hidden[inst.room]=1;
     ledger(inst.def.obs,"said the room was clear","lie");
@@ -663,7 +810,7 @@ function relay(choice){
     say(pick(["...You've gone quiet. Say again?","Nothing? Alright.","Static. Carrying on."]));
   }
   meters(); drawMap();
-  if(!checkEnd()){ lock(false); el("say").focus(); }
+  if(!checkEnd()){ lock(false); schedule(); }
 }
 
 /* ================= talking ================= */
@@ -699,11 +846,13 @@ function parse(t){
   return {act:"idle"};
 }
 function talk(text){
-  if(S.busy||S.ended||S.secret) return;
+  if(S.busy||S.ended||S.secret||S.pending) return;
   push("you","YOU",text);
   var p=parse(text);
-  if(p.go){ move(p.go,false); return; }
-  if(p.act==="noroom"){ say("I don't know a room by that name. From here I can reach "+adjList()+"."); return; }
+  if(p.go||p.act==="noroom"){
+    say(pick(["I'm finding my own way. Speak up when you can see I'm wrong.",
+              "I've got the survey in my head. Tell me when it's letting me down."]));
+    return; }
   S.busy=true; lock(true); state(true,"generating");
   setTimeout(function(){
     S.air=clamp(S.air-3,0,100);
@@ -718,7 +867,7 @@ function talk(text){
         : pick(["Say it plain, Topside.","That's no use to me down here.","Give me a room and I'll go."]);
     if(r===S.lastSaid) r="Say again.";
     state(false,"holding"); say(r); meters();
-    S.busy=false; if(!checkEnd()){ lock(false); el("say").focus(); }
+    S.busy=false; if(!checkEnd()){ lock(false); schedule(); }
   },700+Math.random()*700);
 }
 
@@ -791,9 +940,11 @@ window.addEventListener("resize",sizeSilt);
 el("begin").onclick=function(){
   show("s-dive"); sizeSilt();
   draw(true); meters(); drawMap(); state(false,"holding");
+  pips();
   push("obs","OBS","channel open \u00b7 the engine room \u00b7 nothing unaccounted for");
-  say("Topside, Gwen. Recorder's clipped on. I'm five rooms in and I can't see a thing. Route me.");
+  say("Topside, Gwen. Recorder's clipped on. I'll find my own way out. Speak up when you can see I'm wrong.");
   el("say").focus();
+  schedule();
 };
 el("talk").addEventListener("submit",function(e){
   e.preventDefault();
@@ -803,6 +954,8 @@ el("talk").addEventListener("submit",function(e){
 [].forEach.call(document.querySelectorAll(".relay button"),function(b){
   b.addEventListener("click",function(){ relay(b.getAttribute("data-r")); });
 });
+el("spendHint").onclick=spendHint;
+el("letGo").onclick=letHerGo;
 el("again").onclick=function(){ location.reload(); };
 
 siltLoop();
