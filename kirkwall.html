@@ -535,13 +535,20 @@ function roll(room){
 /* ================= movement ================= */
 function move(to,fromClick){
   if(S.busy||S.ended||S.secret) return;
-  if(ROOMS[S.loc].adj.indexOf(to)<0){ nudge("She can't get there from here. It has to be next door."); return; }
+  if(ROOMS[S.loc].adj.indexOf(to)<0){
+    say("Not from here. It's "+adjList()+", nothing else."); return; }
   if(S.refuses[to]){ speakOnly(pick(["I'm not going back in there. Route me another way.",
       "No. Not that room. You know why."])); return; }
   if(fromClick) push("you","YOU","go to "+ROOMS[to].name);
   tick(to);
 }
 function nudge(t){ push("obs","SYS",t); }
+function adjList(){
+  var a=ROOMS[S.loc].adj.filter(function(r){ return !S.refuses[r]; }).map(function(r){ return ROOMS[r].name; });
+  if(!a.length) return "nowhere she is willing to go";
+  if(a.length===1) return a[0];
+  return a.slice(0,-1).join(", ")+" or "+a[a.length-1];
+}
 function speakOnly(t){ say(t); }
 
 function tick(to){
@@ -672,10 +679,18 @@ var LOOK={
 };
 function parse(t){
   t=t.toLowerCase();
-  var names={breach:["breach","hole","out","exit"],deck:["deck"],stair:["stair","steps"],
-    corridor:["corridor","passage way","cabins"],hold:["hold","cargo"],passage:["passage","machinery","pipes"],
-    engine:["engine","turbine"],shaft:["shaft"]};
+  var names={
+    breach:["breach","hole","exit","way out","surface","get out","out of here"],
+    deck:["deck","dock","rail","top deck"],
+    stair:["stair","stairs","steps","stairwell","ladder"],
+    corridor:["corridor","cabins","cabin"],
+    hold:["cargo hold","cargo","hold"],
+    passage:["passage","machinery","pipes","pipe run"],
+    engine:["engine","turbine"],
+    shaft:["shaft","vent"]};
   for(var k in names){ for(var i=0;i<names[k].length;i++){ if(t.indexOf(names[k][i])>=0) return {go:k}; } }
+  /* she should say she did not catch the room, not brush the player off */
+  if(/\b(go|head|move|swim|take|get|back|route|into|toward)\b/.test(t)) return {act:"noroom"};
   if(/(look|see|describe|around|what.*there)/.test(t)) return {act:"look"};
   if(/(listen|hear|quiet)/.test(t)) return {act:"listen"};
   if(/(air|gas|how much)/.test(t)) return {act:"air"};
@@ -688,6 +703,7 @@ function talk(text){
   push("you","YOU",text);
   var p=parse(text);
   if(p.go){ move(p.go,false); return; }
+  if(p.act==="noroom"){ say("I don't know a room by that name. From here I can reach "+adjList()+"."); return; }
   S.busy=true; lock(true); state(true,"generating");
   setTimeout(function(){
     S.air=clamp(S.air-3,0,100);
