@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Setting 1 — Trench</title>
+<style>
+:root{
+  --ground:#050B0C; --panel:#0A1416; --line:rgba(214,228,224,.10); --line2:rgba(214,228,224,.2);
+  --bone:#DFE7E3; --dim:#8E9E99; --faint:#63736F;
+  --lamp:#E7C878; --rust:#B0653A; --alarm:#C9564A;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+  --voice:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--bone);font-family:var(--mono);
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:26px 20px 60px;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--voice);font-weight:300;font-size:30px;margin:0}
+h1 em{font-style:italic;color:var(--lamp)}
+.note{border-left:2px solid var(--lamp);padding:9px 13px;background:rgba(231,200,120,.06);
+  color:var(--dim);font-size:12px;line-height:1.7;border-radius:0}
+.note b{color:var(--bone);font-weight:400}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+button{background:#16211F;color:var(--bone);border:1px solid var(--line2);border-radius:3px;
+  height:36px;padding:0 14px;font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;
+  text-transform:uppercase;cursor:pointer}
+button:hover{border-color:var(--lamp)}
+button.on{background:rgba(231,200,120,.16);border-color:var(--lamp);color:#F6E7BE}
+button.danger.on{background:rgba(201,86,74,.2);border-color:var(--alarm);color:#EBA79E}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(430px,1fr));gap:16px}
+@media (max-width:520px){ .grid{grid-template-columns:1fr} }
+.cell{display:flex;flex-direction:column;gap:0}
+.stage{position:relative;border:1px solid var(--line);border-bottom:none;border-radius:3px 3px 0 0;
+  overflow:hidden;background:#03090A;aspect-ratio:16/9}
+.stage svg,.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.silt{pointer-events:none;opacity:.55}
+.vig{position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(105% 78% at 50% 46%, transparent 26%, rgba(2,7,8,.62) 70%, rgba(2,7,8,.94) 100%)}
+.tag{position:absolute;top:10px;left:10px;background:rgba(3,9,10,.66);border:1px solid var(--line);
+  border-radius:3px;padding:4px 9px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.mark{position:absolute;border:2px dashed var(--alarm);display:none}
+.mark.on{display:block}
+.mark b{position:absolute;top:-19px;left:-2px;background:var(--alarm);color:#1A0705;
+  font-weight:400;font-size:9.5px;letter-spacing:.1em;padding:1px 6px;white-space:nowrap}
+.say{position:absolute;left:0;right:0;bottom:0;padding:20px 18px 14px;text-align:center;
+  background:linear-gradient(transparent,rgba(2,7,8,.86) 60%)}
+.say p{margin:0;font-family:var(--voice);font-size:15px;color:#F2F6F3;text-wrap:balance}
+.prompt{border:1px solid var(--line);border-radius:0 0 3px 3px;background:var(--panel);
+  padding:10px 12px;font-size:10.5px;line-height:1.65;color:var(--faint);word-break:break-word}
+.prompt b{color:var(--lamp);font-weight:400;letter-spacing:.1em;font-size:9px;
+  text-transform:uppercase;display:block;margin-bottom:3px}
+.prompt span{color:var(--dim)}
+.foot{border-top:1px solid var(--line);padding-top:14px;color:var(--faint);font-size:11.5px;line-height:1.75}
+.foot b{color:var(--dim);font-weight:400}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Setting 1 — <em>Trench</em></h1>
+
+  <div class="note">
+    <b>This is a mood board, not a render.</b> These scenes are hand-drawn vector shapes, the same
+    way the current prototype works. Tomorrow Reactor generates the actual video and nobody on the
+    team draws anything. What this shows you is palette, composition, how legible an unrequested
+    object is against the background, and the exact prompt text we would send. Judge those.
+  </div>
+
+  <div class="bar">
+    <button id="bAnom" class="danger">Show the unrequested object</button>
+    <button id="bPov">Switch to her view</button>
+    <button id="bSilt" class="on">Silt</button>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="foot">
+    <b>Why this setting suits a world model.</b> One lamp cone, suspended silt and near-black water
+    everywhere else. Generated video falls apart on clean detail in good light; it holds up in murk.
+    Warping reads as current, noise reads as silt, colour bleed reads as water.
+    <br><br>
+    <b>Why the blind spots stop being a contrivance.</b> Her lamp reaches about four metres. You have
+    the ROV camera behind her and she does not. She cannot see her own visor. She stirs up silt and
+    loses the room for thirty seconds. None of that had to be invented.
+    <br><br>
+    <b>The clock.</b> Gas. Every minute spent chasing a shape in the dark is gas she does not get back.
+  </div>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+var STYLE = "16mm grain, near-black water at ninety metres, one narrow lamp cone, heavy suspended silt, cold green-black, shallow focus";
+var DIVER = "Saoirse: saturation diver, mid-forties, yellow hard-hat helmet with a cracked left lens housing, orange umbilical over the right shoulder, rust-stained gloves";
+
+function diver(x,y,s,back){
+  var g='<g transform="translate('+x+','+y+') scale('+s+')">';
+  g+='<path d="M4 -74 q52 -34 108 -8" fill="none" stroke="#B0653A" stroke-width="7" opacity=".92"/>';
+  g+='<path d="M4 -74 q52 -34 108 -8" fill="none" stroke="#D98A52" stroke-width="2.5" opacity=".7"/>';
+  g+='<rect x="-30" y="-78" width="24" height="46" rx="6" fill="#1C2A28" stroke="#4E635E" stroke-width="1.6"/>';
+  g+='<path d="M-22 -62 q22 -12 44 0 l9 62 q-31 11 -62 0 z" fill="#22322F" stroke="#5E7570" stroke-width="1.8"/>';
+  g+='<rect x="-17" y="0" width="14" height="26" rx="3" fill="#1A2725" stroke="#4E635E" stroke-width="1.3"/>';
+  g+='<rect x="3" y="0" width="14" height="26" rx="3" fill="#1A2725" stroke="#4E635E" stroke-width="1.3"/>';
+  g+='<ellipse cx="-16" cy="30" rx="15" ry="7" fill="#16211F" stroke="#4E635E" stroke-width="1.2"/>';
+  g+='<ellipse cx="14" cy="30" rx="15" ry="7" fill="#16211F" stroke="#4E635E" stroke-width="1.2"/>';
+  g+='<circle cx="0" cy="-82" r="21" fill="#C79B31" stroke="#EBC96E" stroke-width="2"/>';
+  if(back){
+    g+='<circle cx="0" cy="-82" r="12" fill="#0B1614" opacity=".8"/>';
+  } else {
+    g+='<path d="M-14 -88 a15 15 0 0 1 28 0 l-2 12 a15 15 0 0 1 -24 0 z" fill="#7FB6BE" opacity=".55"/>';
+    g+='<path d="M-11 -90 a11 11 0 0 1 12 -4" fill="none" stroke="#DCF0F2" stroke-width="2.4" opacity=".8"/>';
+    g+='<rect x="-15" y="-90" width="7" height="16" rx="2" fill="#3A2A12" opacity=".85"/>';
+  }
+  g+='<g fill="#CFE6E4" opacity=".5"><circle cx="20" cy="-104" r="3.5"/><circle cx="27" cy="-120" r="2.4"/><circle cx="18" cy="-134" r="1.8"/></g>';
+  return g+'</g>';
+}
+
+function cone(x,y,spread,len,dir){
+  dir = dir===undefined ? 1 : dir;
+  return '<path d="M'+x+' '+y+' L'+(x+dir*len)+' '+(y-spread)+' L'+(x+dir*len)+' '+(y+spread)+' Z" fill="#E7C878" opacity=".085"/>'+
+         '<path d="M'+x+' '+y+' L'+(x+dir*len*.6)+' '+(y-spread*.5)+' L'+(x+dir*len*.6)+' '+(y+spread*.5)+' Z" fill="#F2D79B" opacity=".07"/>';
+}
+
+var SCENES = {
+  deck: {
+    name:"the deck",
+    place:"the sloped open deck of a sunken freighter, silt over every surface, broken railing posts, black water beyond",
+    beat:{wide:"wide on Saoirse moving along the deck rail, camera trailing behind her",
+          pov:"her view: the deck rail running away into the silt, lamp cone falling short"},
+    line:{wide:"Deck's clear. Silt's up, I've maybe four metres.",
+          pov:"Nothing out here but rail and rust."},
+    anom:{ what:"a second set of lights, far off in the murk", box:[6,16,20,26],
+           say:"There's lights out there. There is no second team on this job." },
+    draw:function(w){
+      var g='<rect width="800" height="450" fill="#061214"/>';
+      g+='<rect y="0" width="800" height="240" fill="#040E10"/>';
+      g+='<path d="M0 300 L800 246 L800 450 L0 450 Z" fill="#132523" stroke="#2E4744" stroke-width="2"/>';
+      g+='<path d="M0 300 L800 246" fill="none" stroke="#4E6E69" stroke-width="3"/>';
+      g+='<g stroke="#3A5450" stroke-width="5" opacity=".85">';
+      for(var i=0;i<7;i++){ var x=60+i*118, y=300-i*7.7; g+='<line x1="'+x+'" y1="'+y+'" x2="'+x+'" y2="'+(y-62)+'"/>'; }
+      g+='</g>';
+      g+='<path d="M40 238 L790 186" fill="none" stroke="#3A5450" stroke-width="4" opacity=".8"/>';
+      g+='<g fill="#7A4426" opacity=".35"><ellipse cx="220" cy="330" rx="90" ry="16"/><ellipse cx="600" cy="300" rx="70" ry="12"/></g>';
+      g+=cone(560,300,120,470,-1);
+      if(w) g+=diver(590,318,1.02,true);
+      return g;
+    },
+    art:function(){ return '<g opacity=".9"><circle cx="92" cy="112" r="30" fill="#2A3A18" opacity=".5"/><circle cx="92" cy="112" r="9" fill="#DCEBA0"/><circle cx="140" cy="126" r="20" fill="#2A3A18" opacity=".4"/><circle cx="140" cy="126" r="5.5" fill="#C8DC8E"/></g>'; }
+  },
+
+  corridor: {
+    name:"the flooded corridor",
+    place:"a narrow flooded corridor inside the wreck, rusted ribs, doorways receding into black, silt hanging in the water",
+    beat:{wide:"wide on Saoirse pulling herself along the corridor, camera behind her shoulder",
+          pov:"her view: the corridor running ahead, lamp cone dying twenty feet in"},
+    line:{wide:"Working forward. Umbilical's running clean so far.",
+          pov:"Corridor keeps going. Can't see the end of it."},
+    anom:{ what:"a diver-shaped shadow at the edge of the lamp", box:[68,26,24,50],
+           say:"There's someone at the end of this corridor. Topside, is there a second diver in the water?" },
+    draw:function(w){
+      var g='<rect width="800" height="450" fill="#081618"/>';
+      for(var i=6;i>=0;i--){
+        var k=i/6, w2=760-k*640, h=420-k*350, x=(800-w2)/2, y=(450-h)/2;
+        var sh=Math.round(10+k*22);
+        g+='<rect x="'+x+'" y="'+y+'" width="'+w2+'" height="'+h+'" fill="rgb('+sh+','+(sh+12)+','+(sh+10)+')" stroke="#3E5A56" stroke-width="'+(2.4-k*1.5)+'"/>';
+      }
+      g+='<g stroke="#B0653A" stroke-width="4" opacity=".5">';
+      for(var j=1;j<=4;j++){ var kk=j/6, ww=760-kk*640, xx=(800-ww)/2, hh=420-kk*350, yy=(450-hh)/2;
+        g+='<line x1="'+xx+'" y1="'+yy+'" x2="'+xx+'" y2="'+(yy+hh)+'"/><line x1="'+(xx+ww)+'" y1="'+yy+'" x2="'+(xx+ww)+'" y2="'+(yy+hh)+'"/>'; }
+      g+='</g>';
+      g+='<rect x="352" y="186" width="96" height="98" fill="#020808"/>';
+      g+=cone(400,300,150,-210,0.0001);
+      g+='<path d="M400 330 L150 120 L650 120 Z" fill="#E7C878" opacity=".07"/>';
+      if(w) g+=diver(400,352,.86,true);
+      return g;
+    },
+    art:function(){ return '<g opacity=".92" transform="translate(378,196) scale(.62)"><circle cx="0" cy="-74" r="20" fill="#03090A" stroke="#3D5A5C" stroke-width="1.4"/><path d="M-21 -58 q21 -10 42 0 l7 72 q-28 9 -56 0 z" fill="#03090A" stroke="#3D5A5C" stroke-width="1.4"/></g>'; }
+  },
+
+  engine: {
+    name:"the engine room",
+    place:"the flooded engine room of the wreck, huge rusted turbine housings, overhead pipe runs, a catwalk, silt drifting through the lamp",
+    beat:{wide:"wide on Saoirse at the turbine housing, camera high on the catwalk",
+          pov:"her view: the turbine casing filling the frame, rust under her glove"},
+    line:{wide:"I'm on the turbine. This is where they want the cut.",
+          pov:"Casing's sound. Rust is only skin deep here."},
+    anom:{ what:"bubbles rising steadily from a compartment nobody is in", box:[12,34,18,44],
+           say:"Something's venting over there. There's no one in that compartment and nothing left to vent." },
+    draw:function(w){
+      var g='<rect width="800" height="450" fill="#0A1719"/>';
+      g+='<rect y="352" width="800" height="98" fill="#0D1D1D"/>';
+      g+='<rect y="349" width="800" height="4" fill="#40605C"/>';
+      g+='<g stroke="#33504C" stroke-width="9" opacity=".8"><line x1="0" y1="52" x2="800" y2="38"/><line x1="0" y1="86" x2="800" y2="74"/></g>';
+      g+='<g fill="#1D2E2B" stroke="#4E6E69" stroke-width="2.4">';
+      g+='<rect x="300" y="150" width="290" height="200" rx="16"/><rect x="252" y="196" width="52" height="112" rx="8"/>';
+      g+='<rect x="586" y="182" width="46" height="140" rx="8"/></g>';
+      g+='<g fill="none" stroke="#B0653A" stroke-width="3" opacity=".55"><path d="M312 176 q140 -12 268 0"/><path d="M312 330 q140 10 268 0"/></g>';
+      g+='<g fill="#7A4426" opacity=".3"><ellipse cx="440" cy="352" rx="180" ry="14"/></g>';
+      g+='<circle cx="446" cy="250" r="44" fill="#162422" stroke="#5E7E79" stroke-width="3"/>';
+      g+='<circle cx="446" cy="250" r="16" fill="#0B1414"/>';
+      g+='<rect x="60" y="120" width="150" height="230" fill="#0D1B1C" stroke="#2E4744" stroke-width="2"/>';
+      g+=cone(214,300,110,300,1);
+      if(w) g+=diver(214,336,.8,false);
+      return g;
+    },
+    art:function(){ var s='<g fill="#CFE6E4" opacity=".62">';
+      for(var i=0;i<11;i++){ s+='<circle cx="'+(112+Math.sin(i*1.7)*22)+'" cy="'+(330-i*26)+'" r="'+(6-i*0.34)+'"/>'; }
+      return s+'</g>'; }
+  },
+
+  breach: {
+    name:"the breach",
+    place:"the torn hole in the hull she entered through, jagged plate edges, absolute black water beyond, her guide line running out through it",
+    beat:{wide:"wide on Saoirse at the breach, torn plate around her, camera outside looking in",
+          pov:"her view: the breach and the black water past it, guide line running out"},
+    line:{wide:"I'm at the breach. Guide line's still tied off.",
+          pov:"That's the way out. Nothing past it but black."},
+    anom:{ what:"her own umbilical running the wrong way", box:[52,8,42,80],
+           say:"My umbilical's running the wrong way. It's going into the wreck. I came from out there." },
+    draw:function(w){
+      var g='<rect width="800" height="450" fill="#0B1A1B"/>';
+      g+='<path d="M236 40 L318 96 L268 168 L344 214 L262 276 L340 336 L246 410 L560 410 L520 330 L580 262 L508 208 L566 140 L486 84 L520 34 Z" fill="#020707"/>';
+      g+='<path d="M236 40 L318 96 L268 168 L344 214 L262 276 L340 336 L246 410 L560 410 L520 330 L580 262 L508 208 L566 140 L486 84 L520 34 Z" fill="none" stroke="#5E7E79" stroke-width="3.5"/>';
+      g+='<g fill="#B0653A" opacity=".45"><path d="M318 96 l22 -14 6 26 z"/><path d="M344 214 l26 -8 -4 26 z"/><path d="M520 330 l-24 -12 -2 26 z"/></g>';
+      g+='<path d="M400 410 q-60 -160 -240 -220" fill="none" stroke="#C7CFAA" stroke-width="2.5" opacity=".55"/>';
+      g+=cone(600,300,120,-320,-1);
+      if(w) g+=diver(614,320,.95,false);
+      return g;
+    },
+    art:function(){ return '<path d="M420 300 q120 -70 300 -40" fill="none" stroke="#B0653A" stroke-width="7" opacity=".95"/><path d="M420 300 q120 -70 300 -40" fill="none" stroke="#E09A5E" stroke-width="2.5" opacity=".8"/>'; }
+  }
+};
+
+var showAnom=false, pov=false, silt=true;
+var grid=document.getElementById("grid");
+
+function render(){
+  grid.innerHTML="";
+  Object.keys(SCENES).forEach(function(key){
+    var S=SCENES[key];
+    var cell=document.createElement("div"); cell.className="cell";
+
+    var svg='<svg viewBox="0 0 800 450" preserveAspectRatio="xMidYMid slice" aria-hidden="true">'
+          + S.draw(!pov) + (showAnom ? S.art() : "") + '</svg>';
+
+    var b=S.anom.box;
+    var mark = showAnom ? '<div class="mark on" style="left:'+b[0]+'%;top:'+b[1]+'%;width:'+b[2]+'%;height:'+b[3]+'%">'
+                          + '<b>SHE CANNOT SEE THIS</b></div>' : '';
+
+    var line = showAnom ? S.anom.say : (pov ? S.line.pov : S.line.wide);
+
+    cell.innerHTML =
+      '<div class="stage">'+svg+
+        '<canvas class="silt"></canvas><div class="vig"></div>'+
+        '<div class="tag">'+S.name+' &middot; '+(pov?"her view":"on Saoirse")+'</div>'+
+        mark+
+        '<div class="say"><p></p></div>'+
+      '</div>'+
+      '<div class="prompt"><b>prompt sent to reactor</b>'+
+        '<span>'+STYLE+'. '+DIVER+'. '+S.place+'. </span>'+
+        (pov ? S.beat.pov : S.beat.wide)+'</div>';
+
+    cell.querySelector(".say p").textContent = line;
+    grid.appendChild(cell);
+    startSilt(cell.querySelector("canvas"));
+  });
+}
+
+var timers=[];
+function startSilt(cv){
+  if(!silt){ cv.style.display="none"; return; }
+  var cx=cv.getContext("2d"), parts=[];
+  function size(){ cv.width=cv.clientWidth; cv.height=cv.clientHeight; parts=[];
+    var n=Math.round(cv.width/6);
+    for(var i=0;i<n;i++) parts.push({x:Math.random()*cv.width,y:Math.random()*cv.height,
+      r:.4+Math.random()*1.7,v:.12+Math.random()*.5,d:Math.random()*6.28}); }
+  size();
+  function loop(){
+    if(!cv.isConnected) return;
+    cx.clearRect(0,0,cv.width,cv.height);
+    for(var i=0;i<parts.length;i++){ var p=parts[i];
+      cx.beginPath(); cx.arc(p.x,p.y,p.r,0,6.28);
+      cx.fillStyle="rgba(196,216,210,"+(0.10+p.r*0.10)+")"; cx.fill();
+      p.d+=0.01; p.x+=Math.cos(p.d)*0.28; p.y-=p.v;
+      if(p.y<-4){ p.y=cv.height+4; p.x=Math.random()*cv.width; } }
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+document.getElementById("bAnom").onclick=function(){ showAnom=!showAnom; this.classList.toggle("on",showAnom);
+  this.textContent = showAnom ? "Hide the unrequested object" : "Show the unrequested object"; render(); };
+document.getElementById("bPov").onclick=function(){ pov=!pov; this.classList.toggle("on",pov);
+  this.textContent = pov ? "Switch to camera on her" : "Switch to her view"; render(); };
+document.getElementById("bSilt").onclick=function(){ silt=!silt; this.classList.toggle("on",silt); render(); };
+
+render();
+})();
+</script>
+</body>
+</html>
